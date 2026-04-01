@@ -46,7 +46,7 @@ class client :
 
             if(len(respuesta)<= 0):
                 # La info no se recibió bien
-                print("REGISTER FAIL")
+                print("REGISTER FAIL\n")
                 return client.RC.ERROR
 
             codigo= respuesta[0]
@@ -55,15 +55,15 @@ class client :
                 return client.RC.OK
 
             elif(codigo == 1):
-                print("USERNAME IN USE")
+                print("USERNAME IN USE\n")
                 return client.RC.USER_ERROR
             
             elif(codigo == 2):
-                print("REGISTER FAIL")
+                print("REGISTER FAIL\n")
                 return client.RC.ERROR
 
         except:
-            print("REGISTER FAIL")
+            print("REGISTER FAIL\n")
             return client.RC.ERROR
         
         finally:
@@ -87,6 +87,48 @@ class client :
     @staticmethod
     def  unregister(user) :
         #  Write your code here
+
+        sd = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+
+        try:
+            # Nos conectamos con los datos dados al servidor
+            sd.connect((client._server,client._port))
+            # Enviamos la instruccion de register
+            message = b'UNREGISTER\0'
+            sd.sendall(message)
+
+            # Enviamos el nombre de usuario
+            message = user.encode() + b'\0'
+            sd.sendall(message)
+
+            # Esperamos a obtener el código de ejecución
+            respuesta = sd.recv(1)
+
+            if(len(respuesta)<= 0):
+                # La info no se recibió bien
+                print("UNREGISTER FAIL\n")
+                return client.RC.ERROR
+
+            codigo= respuesta[0]
+            if(codigo == 0):
+                print("UNREGISTER OK\n")
+                return client.RC.OK
+
+            elif(codigo == 1):
+                print("USER DOES NOT EXIST\n")
+                return client.RC.USER_ERROR
+            
+            elif(codigo == 2):
+                print("UNREGISTER FAIL\n")
+                return client.RC.ERROR
+
+        except:
+            print("UNREGISTER FAIL\n")
+            return client.RC.ERROR
+        
+        finally:
+            # Cerramos el socket del cliente
+            sd.close()
         return client.RC.ERROR
 
 
