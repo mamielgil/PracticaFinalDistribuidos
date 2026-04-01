@@ -368,4 +368,5 @@ int gestionar_envio_mensaje(struct info_usuario datos_source,struct mensaje mens
     // nombre del cliente está en el struct datos_usuario
     // el segundo parámetro es el mensaje a enviar, se devuelve -1 si no se consigue enviar el mensaje
     // ESTA FUNCION SE ENCARGARA DE MOSTRAR LOS MENSAJES DE ENVIO DE MENSAJES CORRESPONDIENTES
+    return 0;
 }

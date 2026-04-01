@@ -1,6 +1,7 @@
 from enum import Enum
 import argparse
 import socket
+import threading
 
 class client :
 
@@ -15,6 +16,7 @@ class client :
     # ****************** ATTRIBUTES ******************
     _server = None
     _port = -1
+    _thread_recibo_mensajes = None
 
     # ******************** METHODS *******************
     # *
@@ -46,24 +48,24 @@ class client :
 
             if(len(respuesta)<= 0):
                 # La info no se recibió bien
-                print("REGISTER FAIL\n")
+                print("REGISTER FAIL")
                 return client.RC.ERROR
 
             codigo= respuesta[0]
             if(codigo == 0):
-                print("REGISTER OK\n")
+                print("REGISTER OK")
                 return client.RC.OK
 
             elif(codigo == 1):
-                print("USERNAME IN USE\n")
+                print("USERNAME IN USE")
                 return client.RC.USER_ERROR
             
             elif(codigo == 2):
-                print("REGISTER FAIL\n")
+                print("REGISTER FAIL")
                 return client.RC.ERROR
 
         except:
-            print("REGISTER FAIL\n")
+            print("REGISTER FAIL")
             return client.RC.ERROR
         
         finally:
@@ -106,24 +108,24 @@ class client :
 
             if(len(respuesta)<= 0):
                 # La info no se recibió bien
-                print("UNREGISTER FAIL\n")
+                print("UNREGISTER FAIL")
                 return client.RC.ERROR
 
             codigo= respuesta[0]
             if(codigo == 0):
-                print("UNREGISTER OK\n")
+                print("UNREGISTER OK")
                 return client.RC.OK
 
             elif(codigo == 1):
-                print("USER DOES NOT EXIST\n")
+                print("USER DOES NOT EXIST")
                 return client.RC.USER_ERROR
             
             elif(codigo == 2):
-                print("UNREGISTER FAIL\n")
+                print("UNREGISTER FAIL")
                 return client.RC.ERROR
 
         except:
-            print("UNREGISTER FAIL\n")
+            print("UNREGISTER FAIL")
             return client.RC.ERROR
         
         finally:
@@ -141,6 +143,71 @@ class client :
     @staticmethod
     def  connect(user) :
         #  Write your code here
+        socket_envio_peticion = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+
+        socket_recepcion_mensajes = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        socket_recepcion_mensajes.bind(("0.0.0.0",0))
+        socket_recepcion_mensajes.listen(1)
+        puerto = socket_recepcion_mensajes.getsockname()[1]
+        # Crear un hilo para recibir mensajes
+        client._thread_recibo_mensajes = threading.Thread(target=client.worker,args = (socket_recepcion_mensajes,))
+        client._thread_recibo_mensajes.daemon = True
+        client._thread_recibo_mensajes.start()
+
+        try:
+            # Nos conectamos con los datos dados al servidor
+            socket_envio_peticion.connect((client._server,client._port))
+            # Enviamos la instruccion de register
+            message = b'CONNECT\0'
+            socket_envio_peticion.sendall(message)
+
+            # Enviamos el nombre de usuario
+            message = user.encode() + b'\0'
+            socket_envio_peticion.sendall(message)
+
+            # Enviamos el puerto asociado
+            message = str(puerto).encode() + b'\0'
+            socket_envio_peticion.sendall(message)
+
+            respuesta = socket_envio_peticion.recv(1)
+
+            if(len(respuesta)<= 0):
+                # La info no se recibió bien
+                socket_recepcion_mensajes.close()
+                print("CONNECT FAIL")
+                return client.RC.ERROR
+
+            codigo= respuesta[0]
+            
+            if(codigo == 0):
+                print("CONNECT OK")
+                return client.RC.OK
+
+            elif(codigo == 1):
+                socket_recepcion_mensajes.close()
+                print("CONNECT FAIL, USER DOES NOT EXIST")
+                return client.RC.USER_ERROR
+            
+            elif(codigo == 2):
+                socket_recepcion_mensajes.close()
+                print("USER ALREADY CONNECTED")
+                return client.RC.ERROR
+            
+            elif(codigo == 3):
+                socket_recepcion_mensajes.close()
+                print("CONNECT FAIL")
+                return client.RC.ERROR
+
+        
+        except:
+            socket_recepcion_mensajes.close()
+            print("CONNECT FAIL")
+            return client.RC.ERROR
+        
+        finally:
+            socket_envio_peticion.close()
+
+            
         return client.RC.ERROR
 
     # *
@@ -152,6 +219,12 @@ class client :
     def  users() :
         #  Write your code here
         return client.RC.ERROR
+    
+    @staticmethod
+    def worker(socket_recepcion_mensajes):
+        # Código que recibe los mensajes procedentes de otros clientes
+        # socket_recepcion_mensajes contiene el socket que permite obtener dichos mensajes
+        return
 
 
 
