@@ -1,4 +1,6 @@
+#include "gestionar_peticiones.h"
 #include "lines.h"
+#include <netinet/in.h>
 #include <fcntl.h>        
 #include <sys/stat.h>
 #include <sys/file.h>
@@ -6,21 +8,14 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include<arpa/inet.h>
+#include <arpa/inet.h>
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 
 # define NUM_THREADS 50
-# define BUFFER_SIZE 1024
 
-
-struct peticion {
-    int socket_cliente;
-    char ip[INET_ADDRSTRLEN];
-};
 
 struct peticion buffer_socket[NUM_THREADS];
 int n_elementos = 0;
@@ -30,29 +25,6 @@ pthread_cond_t no_lleno;
 pthread_cond_t no_vacio;
 pthread_mutex_t mfin;
 int fin = 0;
-
-struct mensaje {
-    // Guardamos en un struct los datos que caracterizan a un mensaje
-    unsigned int id;
-    // Almacenamos el usuario que envió dicho mensaje
-    char usuario_origen [256];
-    char texto_mensaje [BUFFER_SIZE];
-
-};
-struct info_usuario {
-    // Asumimos que el tamaño máximo es de 256 chars
-    char nombre_cliente[256];
-    // 0 es que está offline y 1 es que está conectado
-    int estado;
-    int ultimo_id;
-
-    // IP del usuario
-    char ip[INET_ADDRSTRLEN];
-
-    // Puerto donde el proceso cliente escucha y se le pueden enviar mensajes
-    int puerto_escucha_cliente;
-};
-
 
 // Función que determina la petición que desea el cliente
 void procesar_peticion(struct peticion);
@@ -68,7 +40,7 @@ void* tratar_usuario(){
         while(n_elementos == 0){
 
             if(fin == 1){
-                printf("Finalizando el servicio\n");
+                printf("s> Finalizando el servicio\n");
                 pthread_mutex_unlock(&mi_mutex);
                 pthread_exit(0);
             }
@@ -96,7 +68,7 @@ void* tratar_usuario(){
 int main(int argc, char *argv[]){
 
     if(argc !=2){
-        perror("Necesitas especificar el número de puerto\n");
+        perror("s> Necesitas especificar el número de puerto\n");
         exit(1);
     }
 
@@ -108,7 +80,7 @@ int main(int argc, char *argv[]){
 
     if(sd < 0){
         // El socket no se creo de forma exitosa
-        perror("Error in socket");
+        perror("s> Error in socket");
         exit(1);
     }
     int val = 1;
@@ -117,7 +89,7 @@ int main(int argc, char *argv[]){
 
     if( err < 0){
         // La configuración se asignó de forma errónea
-        perror("Error en el establecimiento de la configuración");
+        perror("s> Error en el establecimiento de la configuración");
         exit(1);
     }
 
@@ -125,7 +97,7 @@ int main(int argc, char *argv[]){
 
     if(port_number == 0){
         // Error al hacer el atoi
-        perror("No se pudo obtener el puerto del servidor");
+        perror("s> No se pudo obtener el puerto del servidor");
         exit(1);
     }
 
@@ -146,21 +118,21 @@ int main(int argc, char *argv[]){
     err = bind(sd, (const struct sockaddr *) &server_addr, sizeof(server_addr));
 
     if(err == -1){
-        printf("Error en el bind\n");
+        printf("s> Error en el bind\n");
         return -1;
     }
 
     err = listen(sd,SOMAXCONN);
 
     if(err == -1){
-        printf("Error en el listen\n");
+        printf("s> Error en el listen\n");
         return -1;
     }
 
     // Como el servidor ya está inicializado hacemos el print correspondiente
     char ip_servidor[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(server_addr.sin_addr),ip_servidor,INET_ADDRSTRLEN);
-    printf("init server %s:%d",ip_servidor,ntohs(server_addr.sin_port));
+    printf("s> init server %s:%d\n",ip_servidor,ntohs(server_addr.sin_port));
 
     // Hemos decidido hacer los threads detached de forma que liberan
     // sus recursos de forma automática. 
@@ -186,7 +158,7 @@ int main(int argc, char *argv[]){
         int sc = accept(sd, (struct sockaddr*)&datos_conexion, &tamaño_conexion);
 
         if(sc == -1){
-            printf("Error en el accept\n");
+            printf("s> Error en el accept\n");
             continue;
         }
 
@@ -249,105 +221,15 @@ void procesar_peticion(struct peticion datos_cliente){
 
         // Significa que hemos leído algo
         if(strcmp(buffer,"REGISTER") == 0){
-            // En este caso realizamos la operación register
+            // En este caso, realizamos la operación register
             gestionar_register(datos_cliente);
             
+        }else if(strcmp(buffer, "UNREGISTER") == 0){
+            // En este caso, gestionamos el unregister
+            gestionar_unregister(datos_cliente);
         }
     }
 
-
-}
-
-void gestionar_register(struct peticion datos_recibidos){
-
-    // A continuación el servidor debe obtener el nombre de usuario a registrar
-    char buffer_recepcion[BUFFER_SIZE];
-
-    // El codigo de error es un unico byte
-    char codigo;
-    int sd = datos_recibidos.socket_cliente;
-    // Obtenemos el usuario
-    if(readLine(sd,buffer_recepcion,BUFFER_SIZE) > 0){
-        // Hemos obtenido texto, asumimos que es el usuario a registrar
-        
-        if(mkdir("clientes",0700) == -1){
-            
-            if(errno != EEXIST){
-                // Hubo un error que no fue debido a que el directorio ya existía
-                
-                // Enviamos el mensaje de error y finalizamos la ejecución
-                codigo = 2;
-                // Enviamos el codigo a destino
-                sendMessage(sd,&codigo,1);
-                // Mostramos el mensaje de error
-                printf("REGISTER %s FAIL\n", buffer_recepcion);
-                return;
-            }
-            // Si errno == EEXIST podemos intentar crear el usuario
-        }
-        
-        // Verificamos que no exista ningún usuario con ese nombre. Para ello accedemos al directorio
-        // y comprobamos si el archivo ya existe
-        
-        // Formamos la ruta del archivo para ese usuario
-        char ruta[BUFFER_SIZE + 10];
-        sprintf(ruta,"clientes/%s",buffer_recepcion);
-
-        int fd = open(ruta,O_CREAT | O_EXCL | O_WRONLY, 0644);
-
-        if(fd <= 0){
-            // El archivo ya existe
-            
-            // Enviamos el codigo de error y finalizamos la ejecución
-            codigo = 1;
-            sendMessage(sd, &codigo, 1);
-            // Creamos el mensaje de error
-            printf("REGISTER %s FAIL\n", buffer_recepcion);
-            return;
-        }
-
-        // Se ha podido crear el archivo por lo que ahora escribimos la información del usuario
-        struct info_usuario datos_usuario;
-        memset(&datos_usuario,0,sizeof(datos_usuario));
-        // Copiamos el nombre del usuario
-        strncpy(datos_usuario.nombre_cliente,buffer_recepcion,255);
-        // Establecemos que esté desconectado por defecto
-        datos_usuario.estado = 0;
-        datos_usuario.ultimo_id = 0;
-
-        // Inicialmente la IP está vacía
-        strcpy(datos_usuario.ip,"");
-        // De momento el cliente no tiene puerto asociado
-        datos_usuario.puerto_escucha_cliente = 0;
-
-        // Ahora guardamos la información en el fichero
-
-        flock(fd,LOCK_EX);
-        
-        // Podemos reutilizar la funcion sendMessage para escribir en el archivo
-
-        if(sendMessage(fd,(char* ) &datos_usuario,sizeof(datos_usuario)) < 0){
-            codigo = 2;
-            sendMessage(sd,&codigo,1);
-            printf("REGISTER %s FAIL\n", buffer_recepcion);
-            return;
-        }
-        // Ahora no hay mensajes pendientes por lo que no tenemos que escribir nada más
-        flock(fd,LOCK_UN); 
-        close(fd);
-        // En este caso, se creo el usuario correctamente por lo que enviamos el código y printeamos
-        codigo = 0;
-        sendMessage(sd,&codigo,1);
-        printf("REGISTER %s OK\n",buffer_recepcion);
-
-    }else{
-        // Enviamos el codigo de error y finalizamos la ejecución
-            codigo = 2;
-            sendMessage(sd, &codigo, 1);
-            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
-            printf("REGISTER unknown_user FAIL\n");
-            
-    }
 
 }
 

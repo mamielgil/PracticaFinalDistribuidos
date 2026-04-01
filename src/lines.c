@@ -1,6 +1,6 @@
+#include "lines.h"
 #include <unistd.h>
 #include <errno.h>
-#include "lines.h"
 
 int sendMessage(int socket, char * buffer, int len)
 {

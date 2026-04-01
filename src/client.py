@@ -50,15 +50,15 @@ class client :
                 return client.RC.ERROR
 
             codigo= respuesta[0]
-            if(codigo == client.RC.OK.value):
+            if(codigo == 0):
                 print("REGISTER OK\n")
                 return client.RC.OK
 
-            elif(codigo == client.RC.ERROR.value):
+            elif(codigo == 1):
                 print("USERNAME IN USE")
                 return client.RC.USER_ERROR
             
-            elif(codigo == client.RC.USER_ERROR.value):
+            elif(codigo == 2):
                 print("REGISTER FAIL")
                 return client.RC.ERROR
 
