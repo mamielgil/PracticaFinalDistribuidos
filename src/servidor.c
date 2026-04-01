@@ -67,8 +67,8 @@ void* tratar_usuario(){
 
 int main(int argc, char *argv[]){
 
-    if(argc !=2){
-        perror("s> Necesitas especificar el número de puerto\n");
+    if(argc !=3 || strcmp(argv[1], "-p") != 0){
+        printf("s> ./servidor -p <numero_puerto>\n");
         exit(1);
     }
 
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-    int port_number = atoi(argv[1]);
+    int port_number = atoi(argv[2]);
 
     if(port_number == 0){
         // Error al hacer el atoi
@@ -133,6 +133,7 @@ int main(int argc, char *argv[]){
     char ip_servidor[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(server_addr.sin_addr),ip_servidor,INET_ADDRSTRLEN);
     printf("s> init server %s:%d\n",ip_servidor,ntohs(server_addr.sin_port));
+    printf("s>\n");
 
     // Hemos decidido hacer los threads detached de forma que liberan
     // sus recursos de forma automática. 

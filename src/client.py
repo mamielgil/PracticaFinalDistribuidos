@@ -72,12 +72,6 @@ class client :
             # Cerramos el socket del cliente
             sd.close()
 
-        
-       
-            
-
-
-    
         return client.RC.ERROR
 
     # *
@@ -191,7 +185,7 @@ class client :
             elif(codigo == 2):
                 socket_recepcion_mensajes.close()
                 print("USER ALREADY CONNECTED")
-                return client.RC.ERROR
+                return client.RC.USER_ERROR
             
             elif(codigo == 3):
                 socket_recepcion_mensajes.close()
