@@ -16,6 +16,12 @@
 # define NUM_THREADS 50
 # define BUFFER_SIZE 1024
 
+
+struct peticion {
+    int socket_cliente;
+    char ip[INET_ADDRSTRLEN];
+};
+
 struct peticion buffer_socket[NUM_THREADS];
 int n_elementos = 0;
 int pos_servicio = 0;
@@ -47,10 +53,6 @@ struct info_usuario {
     int puerto_escucha_cliente;
 };
 
-struct peticion {
-    int socket_cliente;
-    char ip[INET_ADDRSTRLEN];
-};
 
 // Función que determina la petición que desea el cliente
 void procesar_peticion(struct peticion);
@@ -155,6 +157,10 @@ int main(int argc, char *argv[]){
         return -1;
     }
 
+    // Como el servidor ya está inicializado hacemos el print correspondiente
+    char ip_servidor[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &(server_addr.sin_addr),ip_servidor,INET_ADDRSTRLEN);
+    printf("init server %s:%d",ip_servidor,ntohs(server_addr.sin_port));
 
     // Hemos decidido hacer los threads detached de forma que liberan
     // sus recursos de forma automática. 
@@ -177,7 +183,7 @@ int main(int argc, char *argv[]){
         struct peticion pet;
         struct sockaddr_in datos_conexion;
         socklen_t tamaño_conexion = sizeof(datos_conexion);
-        int sc = accept(sd, &datos_conexion, &tamaño_conexion);
+        int sc = accept(sd, (struct sockaddr*)&datos_conexion, &tamaño_conexion);
 
         if(sc == -1){
             printf("Error en el accept\n");
@@ -284,7 +290,7 @@ void gestionar_register(struct peticion datos_recibidos){
         // y comprobamos si el archivo ya existe
         
         // Formamos la ruta del archivo para ese usuario
-        char ruta[512];
+        char ruta[BUFFER_SIZE + 10];
         sprintf(ruta,"clientes/%s",buffer_recepcion);
 
         int fd = open(ruta,O_CREAT | O_EXCL | O_WRONLY, 0644);

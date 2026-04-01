@@ -1,5 +1,6 @@
 from enum import Enum
 import argparse
+import socket
 
 class client :
 
@@ -25,6 +26,56 @@ class client :
     @staticmethod
     def  register(user) :
         #  Write your code here
+        sd = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+
+
+        try:
+
+            # Nos conectamos con los datos dados al servidor
+            sd.connect((client._server,client._port))
+            # Enviamos la instruccion de register
+            message = b'REGISTER\0'
+            sd.sendall(message)
+
+            # Enviamos el nombre de usuario
+            message = user.encode() + b'\0'
+            sd.sendall(message)
+
+            # Esperamos a obtener el código de ejecución
+            respuesta = sd.recv(1)
+
+            if(len(respuesta)<= 0):
+                # La info no se recibió bien
+                print("REGISTER FAIL")
+                return client.RC.ERROR
+
+            codigo= respuesta[0]
+            if(codigo == client.RC.OK.value):
+                print("REGISTER OK\n")
+                return client.RC.OK
+
+            elif(codigo == client.RC.ERROR.value):
+                print("USERNAME IN USE")
+                return client.RC.USER_ERROR
+            
+            elif(codigo == client.RC.USER_ERROR.value):
+                print("REGISTER FAIL")
+                return client.RC.ERROR
+
+        except:
+            print("REGISTER FAIL")
+            return client.RC.ERROR
+        
+        finally:
+            # Cerramos el socket del cliente
+            sd.close()
+
+        
+       
+            
+
+
+    
         return client.RC.ERROR
 
     # *
@@ -190,10 +241,10 @@ class client :
 
         if ((args.p < 1024) or (args.p > 65535)):
             parser.error("Error: Port must be in the range 1024 <= port <= 65535");
-            return False;
+            return False
         
-        _server = args.s
-        _port = args.p
+        client._server = args.s
+        client._port = args.p
 
         return True
 
@@ -206,6 +257,9 @@ class client :
             return
 
         #  Write code here
+        # RECORDAR QUE HAY QUE CREAR UN THREAD PARA ENVIAR MENSAJES AL SERVIDOR Y OTRO QUE SE ENCARGARA
+        # DE RECIBIR MENSAJES DEL SERVER PROCEDENTES DE OTROS CLIENTES
+        # El que envia mensajes es el principal y el que recibe será el otro que se crea al realizar el connect
         client.shell()
         print("+++ FINISHED +++")
     
