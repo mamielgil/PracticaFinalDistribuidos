@@ -84,3 +84,46 @@ ssize_t readLine(int fd, void *buffer, size_t n)
 	*buf = '\0';
     	return totRead;
 }
+
+
+ssize_t writeFull(int fd, void *buffer, size_t len) {
+    int r;
+    int l = len;
+    char *buf = (char *)buffer;
+
+    while (l > 0) {
+        r = write(fd, buf, l);
+        
+        if (r < 0) {
+            return -1; // Fallo crítico
+        } else if (r == 0) {
+            // No se escribió nada
+            return -1; 
+        }
+        
+        l = l - r;
+        buf = buf + r;
+    }
+    return 0; // Éxito: se escribieron todos los bytes
+}
+
+ssize_t readFull(int fd, void *buffer, size_t len) {
+    int r;
+    int l = len;
+    char *buf = (char *)buffer;
+
+    while (l > 0) {
+        r = read(fd, buf, l);
+        
+        if (r < 0) {
+            return -1; // Fallo crítico
+        } else if (r == 0) {
+            // Si llegamos aquí y l > 0, significa que el archivo se acabó a medias.
+            return -1; 
+        }
+        
+        l = l - r;
+        buf = buf + r;
+    }
+    return 0; // Éxito: se leyeron todos los bytes
+}

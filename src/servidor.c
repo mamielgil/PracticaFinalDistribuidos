@@ -227,6 +227,10 @@ void procesar_peticion(struct peticion datos_cliente){
         }else if(strcmp(buffer, "UNREGISTER") == 0){
             // En este caso, gestionamos el unregister
             gestionar_unregister(datos_cliente);
+
+        }else if(strcmp(buffer,"CONNECT") == 0){
+            // Ahora lidiamos con el connect
+            gestionar_connect(datos_cliente);
         }
     }
 

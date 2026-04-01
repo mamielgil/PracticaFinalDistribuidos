@@ -13,6 +13,13 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
+
+/* PREGUNTAR QUE CODIGO DE ERROR PONER SI ALGUN MENSAJE EN ESPERA NO SE CONSIGUE ENVIAR
+EN LA FUNCION GESTIONAR_CONNECT*/
+
+
+
 
 
 
@@ -90,9 +97,7 @@ void gestionar_register(struct peticion datos_recibidos){
             return;
         }
         
-        // Podemos reutilizar la funcion sendMessage para escribir en el archivo
-
-        if(sendMessage(fd,(char* ) &datos_usuario,sizeof(datos_usuario)) < 0){
+        if(writeFull(fd,(char* ) &datos_usuario,sizeof(datos_usuario)) != 0){
             codigo = 2;
             sendMessage(sd,&codigo,1);
             printf("s> REGISTER %s FAIL\n", buffer_recepcion);
@@ -118,6 +123,13 @@ void gestionar_register(struct peticion datos_recibidos){
     }
 
 }
+
+
+
+
+
+
+
 
 void gestionar_unregister(struct peticion datos_recibidos){
 
@@ -154,7 +166,7 @@ void gestionar_unregister(struct peticion datos_recibidos){
             // No se pudo bloquear el file porque ya está siendo usado, devolvemos error
             codigo = 2;
             sendMessage(sd, &codigo,1);
-            printf("s>UNREGISTER %s FAIL\n", buffer_recepcion);
+            printf("s> UNREGISTER %s FAIL\n", buffer_recepcion);
             close(fd);
             return;
 
@@ -172,7 +184,7 @@ void gestionar_unregister(struct peticion datos_recibidos){
         } else{
              codigo = 2;
             sendMessage(sd, &codigo,1);
-            printf("s>UNREGISTER %s FAIL\n", buffer_recepcion);
+            printf("s> UNREGISTER %s FAIL\n", buffer_recepcion);
         }
         flock(fd,LOCK_UN);
         close(fd);
@@ -186,4 +198,174 @@ void gestionar_unregister(struct peticion datos_recibidos){
             
     }
 
+}
+
+
+
+
+
+void gestionar_connect(struct peticion datos_recibidos){
+
+    // El codigo de error es un unico byte
+    char codigo;
+    int sd = datos_recibidos.socket_cliente;
+    char buffer_recepcion[BUFFER_SIZE];
+    // Obtenemos el usuario
+    if(readLine(sd,buffer_recepcion,BUFFER_SIZE) > 0){
+
+        // Antes de comprobar al usuario, también recibimos el puerto
+        char nombre_usuario[BUFFER_SIZE];
+
+        // Guardamos el nombre de usuario
+        strcpy(nombre_usuario,buffer_recepcion);
+        if(readLine(sd,buffer_recepcion,BUFFER_SIZE) <= 0){
+            // No se ha conseguido obtener el puerto
+            codigo = 3;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+            printf("s> CONNECT %s FAIL\n",nombre_usuario);
+            return;
+        }
+        // Nos guardamos el puerto
+        int puerto = atoi(buffer_recepcion);
+        if(puerto == 0 || puerto > 65535){
+            // El puerto no es valido
+            codigo = 3;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+            printf("s> CONNECT %s FAIL\n",nombre_usuario);
+            return;
+            
+        }
+
+        // Verificamos que exista un usuario con ese nombre. Para ello accedemos al directorio y comprobamos si el archivo ya existe
+        char ruta[BUFFER_SIZE + 10];
+        sprintf(ruta,"clientes/%s",nombre_usuario);
+
+        int fd = open(ruta,O_RDWR);
+
+        if(fd < 0){
+            // El usuario no existe, se envia código 1 al cliente
+            codigo = 1;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error
+            printf("s> CONNECT %s FAIL\n", nombre_usuario);
+            return;
+        }
+
+        // Ahora vamos a bloquear el archivo para asegurarnos que nadie lo accede mientras lo modificamos
+        if(flock(fd,LOCK_EX) == -1){
+            // Ha ocurrido algún error inesperado
+            codigo = 3;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+            printf("s> CONNECT %s FAIL\n",nombre_usuario);
+            close(fd);
+            return;
+        }
+        
+        // Aquí ya hemos bloqueado el archivo por lo que leemos la info
+        struct info_usuario datos_usuario;
+        if(readFull(fd, (char*) &datos_usuario, sizeof(struct info_usuario)) != 0){
+            // No se ha podido obtener la info
+            codigo = 3;
+            sendMessage(sd, &codigo, 1);
+            printf("s> CONNECT %s FAIL\n",nombre_usuario);
+            flock(fd, LOCK_UN);
+            close(fd);
+            return;
+
+        }
+
+        if(datos_usuario.estado == 1){
+            // El usuario estaba conectado
+            codigo = 2;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+            printf("s> CONNECT %s FAIL\n",nombre_usuario);
+            flock(fd, LOCK_UN);
+            close(fd);
+            return;
+        }
+       
+        // Aquí significa que el usuario estaba desconectado por lo que actualizamos sus datos
+        datos_usuario.puerto_escucha_cliente = puerto;
+        datos_usuario.estado = 1;
+        strcpy(datos_usuario.ip,datos_recibidos.ip);
+
+
+        // Ahora intentamos enviar los mensajes en caso de que hayan
+        struct mensaje mensaje_obtenido;
+        struct mensaje mensajes_fallidos[BUFFER_SIZE];
+
+        int num_fallidos = 0;
+
+        while(readFull(fd,&mensaje_obtenido,sizeof(struct mensaje)) == 0){
+            // Hemos obtenido un mensaje, lo intentamos enviar
+
+            if(gestionar_envio_mensaje(datos_usuario,mensaje_obtenido) == -1){
+                // Guardamos el mensaje que no se consiguió enviar y aumentamos el contador
+                mensajes_fallidos[num_fallidos] = mensaje_obtenido;
+                num_fallidos++;
+            }
+
+        }
+        
+        // Nos movemos al inicio del archivo y escribimos la infomación actualizada
+        lseek(fd,0,SEEK_SET);
+        if(writeFull(fd,(char*)&datos_usuario,sizeof(struct info_usuario)) != 0){
+
+            // No se pudo escribir en el archivo
+            codigo = 3;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+            printf("s> CONNECT %s FAIL\n",nombre_usuario);
+            flock(fd, LOCK_UN);
+            close(fd);
+            return;
+
+        }
+
+        // Enviamos al usuario el éxito de la conexión cuando ya se ha actualizado su info
+        codigo = 0;
+        sendMessage(sd,&codigo,1);
+        printf("s> CONNECT %s OK\n",nombre_usuario);
+
+        for(int i = 0; i < num_fallidos; i++){
+            if(writeFull(fd,&mensajes_fallidos[i],sizeof(struct mensaje)) != 0){
+                // Hubo un error en reescribir dicho mensaje
+                // codigo = 3;
+                // sendMessage(sd, &codigo, 1);
+                // // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+                // printf("s> CONNECT %s FAIL\n",nombre_usuario);
+                // flock(fd, LOCK_UN);
+                // close(fd);
+                // return;
+                }
+        }
+
+        size_t nuevo_size_archivo = sizeof(struct info_usuario) + (sizeof(struct mensaje) * num_fallidos);
+        // Establecemos el nuevo size para eliminar el contenido que pueda ir despues
+        ftruncate(fd, nuevo_size_archivo);
+        // Finalizamos la ejecución, se hicieron todos los cambios
+        
+        flock(fd,LOCK_UN);
+        close(fd);
+
+    }else{
+        // No se ha podido obtener el nombre de usuario
+            codigo = 3;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+            printf("s> CONNECT unknown_user FAIL\n");
+            
+    }
+
+
+}
+
+int gestionar_envio_mensaje(struct info_usuario datos_source,struct mensaje mensaje_a_enviar){
+    // nombre del cliente está en el struct datos_usuario
+    // el segundo parámetro es el mensaje a enviar, se devuelve -1 si no se consigue enviar el mensaje
+    // ESTA FUNCION SE ENCARGARA DE MOSTRAR LOS MENSAJES DE ENVIO DE MENSAJES CORRESPONDIENTES
 }
