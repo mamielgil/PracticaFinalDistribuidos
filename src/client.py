@@ -16,7 +16,8 @@ class client :
     # ****************** ATTRIBUTES ******************
     _server = None
     _port = -1
-    _thread_recibo_mensajes = None
+    _socket_recepcion = None
+    _finalizar_thread = 0
 
     # ******************** METHODS *******************
     # *
@@ -144,9 +145,9 @@ class client :
         socket_recepcion_mensajes.listen(1)
         puerto = socket_recepcion_mensajes.getsockname()[1]
         # Crear un hilo para recibir mensajes
-        client._thread_recibo_mensajes = threading.Thread(target=client.worker,args = (socket_recepcion_mensajes,))
-        client._thread_recibo_mensajes.daemon = True
-        client._thread_recibo_mensajes.start()
+        thread_recibo_mensajes = threading.Thread(target=client.worker,args = (socket_recepcion_mensajes,))
+        thread_recibo_mensajes.daemon = True
+        thread_recibo_mensajes.start()
 
         try:
             # Nos conectamos con los datos dados al servidor
@@ -175,6 +176,8 @@ class client :
             
             if(codigo == 0):
                 print("CONNECT OK")
+                client._socket_recepcion = socket_recepcion_mensajes
+                client._finalizar_thread = 0
                 return client.RC.OK
 
             elif(codigo == 1):
@@ -218,6 +221,13 @@ class client :
     def worker(socket_recepcion_mensajes):
         # Código que recibe los mensajes procedentes de otros clientes
         # socket_recepcion_mensajes contiene el socket que permite obtener dichos mensajes
+        while(client._finalizar_thread == 0):
+            # Aqui va el codigo de recepcion de mensajes
+            1 == 1
+            
+         
+        # El usuario habia hecho disconnect por lo que no recibe más mensajes
+        socket_recepcion_mensajes.close()
         return
 
 
@@ -231,6 +241,51 @@ class client :
     @staticmethod
     def  disconnect(user) :
         #  Write your code here
+        socket_envio_peticion = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        try:
+            socket_envio_peticion.connect((client._server,client._port))
+            message = b'DISCONNECT\0'
+            socket_envio_peticion.sendall(message)
+            message = user.encode() + b'\0'
+            socket_envio_peticion.sendall(message)
+
+            respuesta = socket_envio_peticion.recv(1)
+
+            if(len(respuesta)<= 0):
+                # La info no se recibió bien
+                print("DISCONNECT FAIL")
+                return client.RC.ERROR
+            
+            codigo = respuesta[0]
+            if(codigo == 0):
+                print("DISCONNECT OK")
+                client._finalizar_thread = 1
+                client._socket_recepcion.close()
+                return client.RC.OK
+            
+            elif(codigo == 1):
+                print("DISCONNECT FAIL, USER DOES NOT EXIST")
+                return client.RC.USER_ERROR
+            
+            elif(codigo == 2):
+                print("DISCONNECT FAIL, USER NOT CONNECTED")
+                return client.RC.ERROR
+
+            elif(codigo == 3):
+                print("DISCONNECT FAIL")
+                return client.RC.ERROR
+
+        
+        except:
+            print("DISCONNECT FAIL")
+            return client.RC.ERROR
+        finally:
+            socket_envio_peticion.close()
+
+
+
+
+
         return client.RC.ERROR
 
     # *

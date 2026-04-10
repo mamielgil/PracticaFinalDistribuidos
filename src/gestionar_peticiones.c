@@ -27,13 +27,13 @@ SE PUEDE ASUMIR TAMAÑO DEL BUFFER DE MENSAJES A RECIBIR GRANDE Y YA ESTA? O USA
 void gestionar_register(struct peticion datos_recibidos){
 
     // A continuación el servidor debe obtener el nombre de usuario a registrar
-    char buffer_recepcion[BUFFER_SIZE];
+    char nombre_usuario[BUFFER_SIZE];
 
     // El codigo de error es un unico byte
     char codigo;
     int sd = datos_recibidos.socket_cliente;
     // Obtenemos el usuario
-    if(readLine(sd,buffer_recepcion,BUFFER_SIZE) > 0){
+    if(readLine(sd,nombre_usuario,BUFFER_SIZE) > 0){
         // Hemos obtenido texto, asumimos que es el usuario a registrar
         
         if(mkdir("clientes",0700) == -1){
@@ -46,7 +46,7 @@ void gestionar_register(struct peticion datos_recibidos){
                 // Enviamos el codigo a destino
                 sendMessage(sd,&codigo,1);
                 // Mostramos el mensaje de error
-                printf("s> REGISTER %s FAIL\n", buffer_recepcion);
+                printf("s> REGISTER %s FAIL\n", nombre_usuario);
                 return;
             }
             // Si errno == EEXIST podemos intentar crear el usuario
@@ -57,7 +57,7 @@ void gestionar_register(struct peticion datos_recibidos){
         
         // Formamos la ruta del archivo para ese usuario
         char ruta[BUFFER_SIZE + 10];
-        sprintf(ruta,"clientes/%s",buffer_recepcion);
+        sprintf(ruta,"clientes/%s",nombre_usuario);
 
         int fd = open(ruta,O_CREAT | O_EXCL | O_WRONLY, 0644);
 
@@ -68,7 +68,7 @@ void gestionar_register(struct peticion datos_recibidos){
             codigo = 1;
             sendMessage(sd, &codigo, 1);
             // Creamos el mensaje de error
-            printf("s> REGISTER %s FAIL\n", buffer_recepcion);
+            printf("s> REGISTER %s FAIL\n", nombre_usuario);
             return;
         }
 
@@ -76,7 +76,7 @@ void gestionar_register(struct peticion datos_recibidos){
         struct info_usuario datos_usuario;
         memset(&datos_usuario,0,sizeof(datos_usuario));
         // Copiamos el nombre del usuario
-        strncpy(datos_usuario.nombre_cliente,buffer_recepcion,255);
+        strncpy(datos_usuario.nombre_cliente,nombre_usuario,255);
         // Establecemos que esté desconectado por defecto
         datos_usuario.estado = 0;
         datos_usuario.ultimo_id = 0;
@@ -92,7 +92,7 @@ void gestionar_register(struct peticion datos_recibidos){
             // NO se ha podido bloquear el archivo para escribir la información.
             codigo = 2;
             sendMessage(sd,&codigo,1);
-            printf("s> REGISTER %s FAIL\n", buffer_recepcion);
+            printf("s> REGISTER %s FAIL\n", nombre_usuario);
             close(fd);
             return;
         }
@@ -100,7 +100,7 @@ void gestionar_register(struct peticion datos_recibidos){
         if(writeFull(fd,(char* ) &datos_usuario,sizeof(datos_usuario)) != 0){
             codigo = 2;
             sendMessage(sd,&codigo,1);
-            printf("s> REGISTER %s FAIL\n", buffer_recepcion);
+            printf("s> REGISTER %s FAIL\n", nombre_usuario);
             flock(fd,LOCK_UN);
             close(fd);
             return;
@@ -111,7 +111,7 @@ void gestionar_register(struct peticion datos_recibidos){
         // En este caso, se creo el usuario correctamente por lo que enviamos el código y printeamos
         codigo = 0;
         sendMessage(sd,&codigo,1);
-        printf("s> REGISTER %s OK\n",buffer_recepcion);
+        printf("s> REGISTER %s OK\n",nombre_usuario);
 
     }else{
         // Enviamos el codigo de error y finalizamos la ejecución
@@ -125,29 +125,23 @@ void gestionar_register(struct peticion datos_recibidos){
 }
 
 
-
-
-
-
-
-
 void gestionar_unregister(struct peticion datos_recibidos){
 
     // Primero se recibe el nombre de usuario que se desea borrar
-    char buffer_recepcion[BUFFER_SIZE];
+    char nombre_usuario[BUFFER_SIZE];
 
     // El codigo de error es un unico byte
     char codigo;
     int sd = datos_recibidos.socket_cliente;
     // Obtenemos el usuario
-    if(readLine(sd,buffer_recepcion,BUFFER_SIZE) > 0){
+    if(readLine(sd,nombre_usuario,BUFFER_SIZE) > 0){
         
         // Verificamos que exista un usuario con ese nombre. Para ello accedemos al directorio
         // y comprobamos si el archivo ya existe
         
         // Formamos la ruta del archivo para ese usuario
         char ruta[BUFFER_SIZE + 10];
-        sprintf(ruta,"clientes/%s",buffer_recepcion);
+        sprintf(ruta,"clientes/%s",nombre_usuario);
 
         int fd = open(ruta,O_RDONLY);
 
@@ -156,7 +150,7 @@ void gestionar_unregister(struct peticion datos_recibidos){
             codigo = 1;
             sendMessage(sd, &codigo, 1);
             // Creamos el mensaje de error
-            printf("s> UNREGISTER %s FAIL\n", buffer_recepcion);
+            printf("s> UNREGISTER %s FAIL\n", nombre_usuario);
             return;
         }
 
@@ -166,7 +160,7 @@ void gestionar_unregister(struct peticion datos_recibidos){
             // No se pudo bloquear el file porque ya está siendo usado, devolvemos error
             codigo = 2;
             sendMessage(sd, &codigo,1);
-            printf("s> UNREGISTER %s FAIL\n", buffer_recepcion);
+            printf("s> UNREGISTER %s FAIL\n", nombre_usuario);
             close(fd);
             return;
 
@@ -178,13 +172,13 @@ void gestionar_unregister(struct peticion datos_recibidos){
             // Se borró de forma exitosa
             codigo = 0;
             sendMessage(sd,&codigo,1);
-            printf("s> UNREGISTER %s OK\n", buffer_recepcion);
+            printf("s> UNREGISTER %s OK\n", nombre_usuario);
             
 
         } else{
              codigo = 2;
             sendMessage(sd, &codigo,1);
-            printf("s> UNREGISTER %s FAIL\n", buffer_recepcion);
+            printf("s> UNREGISTER %s FAIL\n", nombre_usuario);
         }
         flock(fd,LOCK_UN);
         close(fd);
@@ -213,11 +207,12 @@ void gestionar_connect(struct peticion datos_recibidos){
     // Obtenemos el usuario
     if(readLine(sd,buffer_recepcion,BUFFER_SIZE) > 0){
 
-        // Antes de comprobar al usuario, también recibimos el puerto
+          // Antes de comprobar al usuario, también recibimos el puerto
         char nombre_usuario[BUFFER_SIZE];
 
         // Guardamos el nombre de usuario
         strcpy(nombre_usuario,buffer_recepcion);
+
         if(readLine(sd,buffer_recepcion,BUFFER_SIZE) <= 0){
             // No se ha conseguido obtener el puerto
             codigo = 3;
@@ -226,6 +221,7 @@ void gestionar_connect(struct peticion datos_recibidos){
             printf("s> CONNECT %s FAIL\n",nombre_usuario);
             return;
         }
+
         // Nos guardamos el puerto
         int puerto = atoi(buffer_recepcion);
         if(puerto == 0 || puerto > 65535){
@@ -360,7 +356,110 @@ void gestionar_connect(struct peticion datos_recibidos){
             printf("s> CONNECT unknown_user FAIL\n");
             
     }
+}
 
+
+
+void gestionar_disconnect(struct peticion datos_recibidos){
+     // El codigo de error es un unico byte
+    char codigo;
+    int sd = datos_recibidos.socket_cliente;
+    char nombre_usuario[BUFFER_SIZE];
+    // Obtenemos el usuario
+    if(readLine(sd,nombre_usuario,BUFFER_SIZE) > 0){  
+
+        // Verificamos que exista un usuario con ese nombre. Para ello accedemos al directorio y comprobamos si el archivo ya existe
+        char ruta[BUFFER_SIZE + 10];
+        sprintf(ruta,"clientes/%s",nombre_usuario);
+
+        int fd = open(ruta,O_RDWR);
+
+        if(fd < 0){
+            // El usuario no existe, se envia código 1 al cliente
+            codigo = 1;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error
+            printf("s> DISCONNECT %s FAIL\n", nombre_usuario);
+            return;
+        }
+        // Si el archivo existe, tenemos que cambiar sus datos para hacer que esté desconectado
+         if(flock(fd,LOCK_EX) == -1){
+            // Ha ocurrido algún error inesperado
+            codigo = 3;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+            printf("s> DISCONNECT %s FAIL\n", nombre_usuario);
+            close(fd);
+            return;
+        }
+
+        // Ahora leemos el archivo para obtener los datos
+        struct info_usuario datos_usuario;
+
+         if(readFull(fd, (char*) &datos_usuario, sizeof(struct info_usuario)) != 0){
+            // No se ha podido obtener la info
+            codigo = 3;
+            sendMessage(sd, &codigo, 1);
+            printf("s> DISCONNECT %s FAIL\n",nombre_usuario);
+            flock(fd, LOCK_UN);
+            close(fd);
+            return;
+
+        }
+
+        if(datos_usuario.estado == 0){
+            // El usuario no estaba conectado
+            codigo = 2;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+            printf("s> DISCONNECT %s FAIL\n",nombre_usuario);
+            flock(fd, LOCK_UN);
+            close(fd);
+            return;
+        }
+
+        if(strcmp(datos_recibidos.ip, datos_usuario.ip) != 0){
+            codigo = 3;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+            printf("s> DISCONNECT %s FAIL\n",nombre_usuario);
+            flock(fd, LOCK_UN);
+            close(fd);
+            return;
+        }
+        strcpy(datos_usuario.ip,"");
+        // Ponemos el estado a desconectado
+        datos_usuario.estado = 0;
+        datos_usuario.puerto_escucha_cliente = -1;
+
+        lseek(fd,0,SEEK_SET);
+        if(writeFull(fd,(char*)&datos_usuario,sizeof(struct info_usuario)) != 0){
+            // No se pudo escribir en el archivo
+            codigo = 3;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+            printf("s> DISCONNECT %s FAIL\n",nombre_usuario);
+            flock(fd, LOCK_UN);
+            close(fd);
+            return;
+
+        }
+
+         // Enviamos al usuario el éxito de la conexión cuando ya se ha actualizado su info
+        codigo = 0;
+        sendMessage(sd,&codigo,1);
+        printf("s> DISCONNECT %s OK\n",nombre_usuario);
+        // Finalizamos la ejecución, se hicieron todos los cambios
+        flock(fd,LOCK_UN);
+        close(fd); 
+
+    }else{
+        // No se ha conseguido recibir el nombre de usuario
+        codigo = 3;
+        sendMessage(sd, &codigo, 1);
+        // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+        printf("s> DISCONNECT unknown_user FAIL\n");
+    }
 
 }
 
