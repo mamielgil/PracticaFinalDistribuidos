@@ -28,7 +28,8 @@ char** leer_users(int* num_users_conn){
     DIR *directorio;
     struct dirent *entrada;
     char* ruta_carpeta = "clientes";
-    char ** users = malloc(sizeof(char*) * BUFFER_SIZE);
+    int current_size = BUFFER_SIZE;
+    char ** users = malloc(sizeof(char*) * current_size);
     if (users == NULL){
         return NULL;
     }
@@ -82,9 +83,10 @@ char** leer_users(int* num_users_conn){
                 return NULL;
             }
             if (datos_usuario.estado == 1){
-                if (*num_users_conn >= BUFFER_SIZE){
+                if (*num_users_conn >= current_size){
                     // Hemos llegado al límite de usuarios que podemos enviar, devolvemos error
-                    char **tmp = realloc(users, sizeof(char*) * (*num_users_conn + 1));
+                    char **tmp = realloc(users, sizeof(char*) * (current_size + 10));
+                    current_size += 10;
                     if (tmp == NULL) {
                         for (int i = 0; i < *num_users_conn; i++){ 
                             free(users[i]);
