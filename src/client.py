@@ -215,6 +215,52 @@ class client :
     @staticmethod
     def  users() :
         #  Write your code here
+        socket_envio_peticion = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        try:
+            socket_envio_peticion.connect((client._server, client._port))
+            message = b'USERS\0'
+            socket_envio_peticion.sendall(message)
+            respuesta = socket_envio_peticion.recv(1)
+            respuesta_2 = socket_envio_peticion.recv(3)
+             
+            if(len(respuesta) <= 0 or len(respuesta_2) <= 0):
+                # La info no se recibió bien
+                print("CONNECTED USERS FAIL")
+                return client.RC.ERROR
+            codigo = respuesta[0]
+            # Vamos a poner como límite 999 usuarios y lo que se recibe es una cadena de texto
+            num_usuarios = int(respuesta_2.decode())
+            num_procesados = 0
+            buffer = b''
+
+            if (codigo == 2):
+                print("CONNECTED USERS FAIL")
+                return client.RC.ERROR
+
+            elif (codigo == 1):
+                print("CONNECTED USERS FAIL, USER IS NOT CONNECTED")
+                return client.RC.USER_ERROR
+            
+            elif (codigo == 0):
+                print(f"CONNECTED USERS ({num_usuarios} users connected) OK")
+                while num_procesados < num_usuarios:
+                    respuesta_3 = socket_envio_peticion.recv(1024)
+                    if len(respuesta_3) <= 0:
+                        print("CONNECTED USERS FAIL")
+                        return client.RC.ERROR
+                    buffer += respuesta_3
+                    while b'\0' in buffer:
+                        user, buffer = buffer.split(b'\0', 1)
+                        print(f"{user.decode()}\n")
+                        num_procesados += 1
+
+        except:
+            print("CONNECTED USERS FAIL")
+            return client.RC.ERROR
+        
+        finally:
+            socket_envio_peticion.close()
+
         return client.RC.ERROR
     
     @staticmethod

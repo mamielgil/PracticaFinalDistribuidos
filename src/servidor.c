@@ -29,9 +29,6 @@ int fin = 0;
 // Función que determina la petición que desea el cliente
 void procesar_peticion(struct peticion);
 
-// Función que gestionar la petición REGISTER
-void gestionar_register(struct peticion);
-
 void* tratar_usuario(){
    
     while(1){
@@ -236,6 +233,8 @@ void procesar_peticion(struct peticion datos_cliente){
         }else if(strcmp(buffer,"DISCONNECT") == 0){
             // Ahora lidiamos con el connect
             gestionar_disconnect(datos_cliente);
+        }else if(strcmp(buffer, "USERS") == 0){
+            gestionar_users(datos_cliente);
         }
         
     }

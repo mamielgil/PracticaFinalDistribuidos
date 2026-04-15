@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <dirent.h>
 
 /* PREGUNTAR QUE CODIGO DE ERROR PONER SI ALGUN MENSAJE EN ESPERA NO SE CONSIGUE ENVIAR
 EN LA FUNCION GESTIONAR_CONNECT
@@ -23,6 +24,89 @@ PREGUNTAR SI ES NORMAL QUE SE VEA LA IP 0.0.0.0 AL HACER EL INIT DEL SERVER
 SE PUEDE ASUMIR TAMAÑO DEL BUFFER DE MENSAJES A RECIBIR GRANDE Y YA ESTA? O USAR MALLOC
 */
 
+char** leer_users(int* num_users_conn){
+    DIR *directorio;
+    struct dirent *entrada;
+    char* ruta_carpeta = "clientes";
+    char ** users = malloc(sizeof(char*) * BUFFER_SIZE);
+    if (users == NULL){
+        return NULL;
+    }
+
+    directorio = opendir(ruta_carpeta);
+    if (directorio == NULL) {
+        printf("Error: No se pudo abrir la carpeta '%s'.\n", ruta_carpeta);
+        free(users);
+        return NULL;
+    }
+
+    while ((entrada = readdir(directorio)) != NULL) {
+
+        if (strcmp(entrada->d_name, ".") == 0 || strcmp(entrada->d_name, "..") == 0) {
+            continue; 
+        }
+
+        if (entrada->d_type == DT_REG) {
+            char ruta[BUFFER_SIZE + 10];
+            sprintf(ruta,"clientes/%s", entrada->d_name);
+            int fd = open(ruta, O_RDONLY, 0644);
+
+            if (fd < 0) {
+                for (int i = 0; i < *num_users_conn; i++){
+                    free(users[i]);
+                }   
+                free(users);
+                closedir(directorio);
+                return NULL;
+            }
+
+            if(flock(fd, LOCK_SH) == -1){
+                // No se ha podido bloquear el archivo para leer la información, devolvemos error
+                for (int i = 0; i < *num_users_conn; i++){
+                    free(users[i]);
+                } 
+                free(users);
+                close(fd);
+                closedir(directorio);
+                return NULL;
+            }
+            struct info_usuario datos_usuario;
+            if(readFull(fd, (char*) &datos_usuario, sizeof(struct info_usuario)) != 0){
+                for (int i = 0; i < *num_users_conn; i++){
+                    free(users[i]);
+                } 
+                free(users);
+                flock(fd, LOCK_UN);
+                close(fd);
+                closedir(directorio);
+                return NULL;
+            }
+            if (datos_usuario.estado == 1){
+                if (*num_users_conn >= BUFFER_SIZE){
+                    // Hemos llegado al límite de usuarios que podemos enviar, devolvemos error
+                    char **tmp = realloc(users, sizeof(char*) * (*num_users_conn + 1));
+                    if (tmp == NULL) {
+                        for (int i = 0; i < *num_users_conn; i++){ 
+                            free(users[i]);
+                        }
+                        free(users);
+                        closedir(directorio);
+                        close(fd);
+                        return NULL;
+                    }
+                    users = tmp;
+                }
+                users[*num_users_conn] = strdup(datos_usuario.nombre_cliente);
+                (*num_users_conn)++;
+            }
+            flock(fd, LOCK_UN);
+            close(fd);
+            }
+        }
+
+    closedir(directorio);
+    return users;
+}
 
 void gestionar_register(struct peticion datos_recibidos){
 
@@ -59,7 +143,7 @@ void gestionar_register(struct peticion datos_recibidos){
         char ruta[BUFFER_SIZE + 10];
         sprintf(ruta,"clientes/%s",nombre_usuario);
 
-        int fd = open(ruta,O_CREAT | O_EXCL | O_WRONLY, 0644);
+        int fd = open(ruta, O_CREAT | O_EXCL | O_WRONLY, 0644);
 
         if(fd < 0){
             // El archivo ya existe
@@ -194,8 +278,102 @@ void gestionar_unregister(struct peticion datos_recibidos){
 
 }
 
+void gestionar_users(struct peticion datos_recibidos){
+     // El codigo de error es un unico byte
+    char codigo;
+    int sd = datos_recibidos.socket_cliente;
+    char nombre_usuario[BUFFER_SIZE];
+    char num_users_str[4];
+    // Obtenemos el usuario
+    if(readLine(sd,nombre_usuario,BUFFER_SIZE) > 0){  
 
+        // Verificamos que exista un usuario con ese nombre. Para ello accedemos al directorio y comprobamos si el archivo ya existe
+        char ruta[BUFFER_SIZE + 10];
+        sprintf(ruta,"clientes/%s",nombre_usuario);
 
+        int fd = open(ruta,O_RDWR);
+
+        if(fd < 0){
+            // El usuario no existe, se envia código 1 al cliente
+            codigo = 1;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error
+            printf("s> CONNECTEDUSERS FAIL\n");
+            return;
+        }
+
+         if(flock(fd,LOCK_SH) == -1){
+            // Ha ocurrido algún error inesperado
+            codigo = 3;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+            printf("s> CONNECTEDUSERS FAIL\n");
+            close(fd);
+            return;
+        }
+
+        // Ahora leemos el archivo para obtener los datos
+        struct info_usuario datos_usuario;
+
+        if(readFull(fd, (char*) &datos_usuario, sizeof(struct info_usuario)) != 0){
+            // No se ha podido obtener la info
+            codigo = 3;
+            sendMessage(sd, &codigo, 1);
+            printf("s> CONNECTEDUSERS FAIL\n");
+            flock(fd, LOCK_UN);
+            close(fd);
+            return;
+
+        }
+
+        if(datos_usuario.estado == 0){
+            // El usuario no estaba conectado
+            codigo = 2;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+            printf("s> CONNECTEDUSERS FAIL\n");
+            flock(fd, LOCK_UN);
+            close(fd);
+            return;
+        }
+
+        if(strcmp(datos_recibidos.ip, datos_usuario.ip) != 0){
+            codigo = 2;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+            printf("s> CONNECTEDUSERS FAIL\n");
+            flock(fd, LOCK_UN);
+            close(fd);
+            return;
+        }
+        int num_users_conn = 0;
+        char ** users = leer_users(&num_users_conn);
+        if (users == NULL){
+            codigo = 2;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer los usuarios conectados
+            printf("s> CONNECTEDUSERS FAIL\n");
+            flock(fd, LOCK_UN);
+            close(fd);
+            return;
+        }else{
+            codigo = 0;
+            sendMessage(sd,&codigo,1);
+            printf("s> CONNECTEDUSERS OK\n");
+            // Finalizamos la ejecución, se hicieron todos los cambios
+            sprintf(num_users_str, "%03d", num_users_conn);
+            sendMessage(sd, num_users_str, 3);
+            for (int i = 0; i < num_users_conn; i++){
+                sendMessage(sd, users[i], strlen(users[i]) + 1);
+                free (users[i]);
+            }
+            flock(fd,LOCK_UN);
+            close(fd);
+            free(users);
+            return;
+        }
+    }
+}
 
 
 void gestionar_connect(struct peticion datos_recibidos){
