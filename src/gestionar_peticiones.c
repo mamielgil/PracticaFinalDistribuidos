@@ -284,70 +284,69 @@ void gestionar_users(struct peticion datos_recibidos){
      // El codigo de error es un unico byte
     char codigo;
     int sd = datos_recibidos.socket_cliente;
-    char nombre_usuario[BUFFER_SIZE];
+    // char nombre_usuario[BUFFER_SIZE];
     char num_users_str[4];
-    // Obtenemos el usuario
-    if(readLine(sd,nombre_usuario,BUFFER_SIZE) > 0){  
-
         // Verificamos que exista un usuario con ese nombre. Para ello accedemos al directorio y comprobamos si el archivo ya existe
-        char ruta[BUFFER_SIZE + 10];
-        sprintf(ruta,"clientes/%s",nombre_usuario);
+        // char ruta[BUFFER_SIZE + 10];
+        // sprintf(ruta,"clientes/%s",nombre_usuario);
 
-        int fd = open(ruta,O_RDWR);
+        // int fd = open(ruta,O_RDWR);
 
-        if(fd < 0){
-            // El usuario no existe, se envia código 1 al cliente
-            codigo = 1;
-            sendMessage(sd, &codigo, 1);
-            // Creamos el mensaje de error
-            printf("s> CONNECTEDUSERS FAIL\n");
-            return;
-        }
+        // if(fd < 0){
+        //     // El usuario no existe, se envia código 1 al cliente
+        //     codigo = 1;
+        //     sendMessage(sd, &codigo, 1);
+        //     // Creamos el mensaje de error
+        //     printf("s> CONNECTEDUSERS FAIL\n");
+        //     return;
+        // }
 
-         if(flock(fd,LOCK_SH) == -1){
-            // Ha ocurrido algún error inesperado
-            codigo = 3;
-            sendMessage(sd, &codigo, 1);
-            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
-            printf("s> CONNECTEDUSERS FAIL\n");
-            close(fd);
-            return;
-        }
+        //  if(flock(fd,LOCK_SH) == -1){
+        //     // Ha ocurrido algún error inesperado
+        //     codigo = 3;
+        //     sendMessage(sd, &codigo, 1);
+        //     // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+        //     printf("s> CONNECTEDUSERS FAIL\n");
+        //     close(fd);
+        //     return;
+        // }
 
-        // Ahora leemos el archivo para obtener los datos
-        struct info_usuario datos_usuario;
+        // // Ahora leemos el archivo para obtener los datos
+        // struct info_usuario datos_usuario;
 
-        if(readFull(fd, (char*) &datos_usuario, sizeof(struct info_usuario)) != 0){
-            // No se ha podido obtener la info
-            codigo = 3;
-            sendMessage(sd, &codigo, 1);
-            printf("s> CONNECTEDUSERS FAIL\n");
-            flock(fd, LOCK_UN);
-            close(fd);
-            return;
+        // if(readFull(fd, (char*) &datos_usuario, sizeof(struct info_usuario)) != 0){
+        //     // No se ha podido obtener la info
+        //     codigo = 3;
+        //     sendMessage(sd, &codigo, 1);
+        //     printf("s> CONNECTEDUSERS FAIL\n");
+        //     flock(fd, LOCK_UN);
+        //     close(fd);
+        //     return;
 
-        }
+        // }
 
-        if(datos_usuario.estado == 0){
-            // El usuario no estaba conectado
-            codigo = 2;
-            sendMessage(sd, &codigo, 1);
-            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
-            printf("s> CONNECTEDUSERS FAIL\n");
-            flock(fd, LOCK_UN);
-            close(fd);
-            return;
-        }
+        // if(datos_usuario.estado == 0){
+        //     // El usuario no estaba conectado
+        //     codigo = 2;
+        //     sendMessage(sd, &codigo, 1);
+        //     // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+        //     printf("s> CONNECTEDUSERS FAIL\n");
+        //     flock(fd, LOCK_UN);
+        //     close(fd);
+        //     return;
+        // }
 
-        if(strcmp(datos_recibidos.ip, datos_usuario.ip) != 0){
-            codigo = 2;
-            sendMessage(sd, &codigo, 1);
-            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
-            printf("s> CONNECTEDUSERS FAIL\n");
-            flock(fd, LOCK_UN);
-            close(fd);
-            return;
-        }
+        // if(strcmp(datos_recibidos.ip, datos_usuario.ip) != 0){
+        //     codigo = 2;
+        //     sendMessage(sd, &codigo, 1);
+        //     // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+        //     printf("s> CONNECTEDUSERS FAIL\n");
+        //     flock(fd, LOCK_UN);
+        //     close(fd);
+        //     return;
+        // }
+        // flock(fd, LOCK_UN);
+        // close(fd);
         int num_users_conn = 0;
         char ** users = leer_users(&num_users_conn);
         if (users == NULL){
@@ -355,8 +354,6 @@ void gestionar_users(struct peticion datos_recibidos){
             sendMessage(sd, &codigo, 1);
             // Creamos el mensaje de error, no se ha podido leer los usuarios conectados
             printf("s> CONNECTEDUSERS FAIL\n");
-            flock(fd, LOCK_UN);
-            close(fd);
             return;
         }else{
             codigo = 0;
@@ -369,12 +366,9 @@ void gestionar_users(struct peticion datos_recibidos){
                 sendMessage(sd, users[i], strlen(users[i]) + 1);
                 free (users[i]);
             }
-            flock(fd,LOCK_UN);
-            close(fd);
             free(users);
             return;
         }
-    }
 }
 
 

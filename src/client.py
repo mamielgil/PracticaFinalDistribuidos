@@ -221,17 +221,12 @@ class client :
             message = b'USERS\0'
             socket_envio_peticion.sendall(message)
             respuesta = socket_envio_peticion.recv(1)
-            respuesta_2 = socket_envio_peticion.recv(3)
              
-            if(len(respuesta) <= 0 or len(respuesta_2) <= 0):
+            if(len(respuesta) <= 0):
                 # La info no se recibió bien
                 print("CONNECTED USERS FAIL")
                 return client.RC.ERROR
             codigo = respuesta[0]
-            # Vamos a poner como límite 999 usuarios y lo que se recibe es una cadena de texto
-            num_usuarios = int(respuesta_2.decode())
-            num_procesados = 0
-            buffer = b''
 
             if (codigo == 2):
                 print("CONNECTED USERS FAIL")
@@ -242,6 +237,15 @@ class client :
                 return client.RC.USER_ERROR
             
             elif (codigo == 0):
+                respuesta_2 = socket_envio_peticion.recv(3)
+                if (len(respuesta_2) <= 0):
+                    # La info no se recibió bien
+                    print("CONNECTED USERS FAIL")
+                    return client.RC.ERROR
+                # Vamos a poner como límite 999 usuarios y lo que se recibe es una cadena de texto
+                num_usuarios = int(respuesta_2.decode())
+                num_procesados = 0
+                buffer = b''
                 print(f"CONNECTED USERS ({num_usuarios} users connected) OK")
                 while num_procesados < num_usuarios:
                     respuesta_3 = socket_envio_peticion.recv(1024)
@@ -251,9 +255,10 @@ class client :
                     buffer += respuesta_3
                     while b'\0' in buffer:
                         user, buffer = buffer.split(b'\0', 1)
-                        print(f"{user.decode()}\n")
+                        print(f"{user.decode()}")
                         num_procesados += 1
 
+                return client.RC.OK
         except:
             print("CONNECTED USERS FAIL")
             return client.RC.ERROR
