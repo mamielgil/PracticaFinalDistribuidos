@@ -365,7 +365,7 @@ void gestionar_users(struct peticion datos_recibidos){
             printf("s> CONNECTEDUSERS OK\n");
             // Finalizamos la ejecución, se hicieron todos los cambios
             sprintf(num_users_str, "%03d", num_users_conn);
-            sendMessage(sd, num_users_str, 3);
+            sendMessage(sd, num_users_str, 4);
             for (int i = 0; i < num_users_conn; i++){
                 sendMessage(sd, users[i], strlen(users[i]) + 1);
                 free (users[i]);
@@ -703,7 +703,7 @@ void gestionar_mensajes(struct peticion datos_recibidos){
         pthread_mutex_unlock(&mi_mutex);
         strncpy(mensaje_a_enviar.usuario_origen, nombre_usuario_remitente, 255);
         strncpy(mensaje_a_enviar.texto_mensaje, text_message, 255);
-        char str_id[3];
+        char str_id[4];
         sprintf(str_id, "%03d", mensaje_a_enviar.id);
         if(datos_usuario.estado == 0){
             // El usuario no esta conectado, se guarda en el archivo para que se envie cuando se conecte
@@ -719,9 +719,10 @@ void gestionar_mensajes(struct peticion datos_recibidos){
             }
             codigo = 0;
             sendMessage(sd,&codigo,1);
-            sendMessage(sd, str_id, 3);
+            sendMessage(sd, str_id, 4);
             flock(fd,LOCK_UN);
             close(fd); 
+            printf("s> MESSAGE %s FROM %s TO %s STORED\n",str_id, nombre_usuario_remitente, nombre_usuario_destino);
             return;
         }
         if (gestionar_envio_mensajes(datos_usuario, mensaje_a_enviar) == -1) {
@@ -734,7 +735,8 @@ void gestionar_mensajes(struct peticion datos_recibidos){
         }
         codigo = 0;
         sendMessage(sd,&codigo,1);
-        sendMessage(sd, str_id, 3);
+        sendMessage(sd, str_id, 4);
+        printf("s> SEND MESSAGE %s FROM %s TO %s\n", str_id, nombre_usuario_remitente, nombre_usuario_destino);
         
         // Ahora obtenemos la información del remitente para enviarle el ACK
         char ruta_remitente[BUFFER_SIZE + 10];
@@ -756,9 +758,9 @@ void gestionar_mensajes(struct peticion datos_recibidos){
                         if(connect(sd_ack, (struct sockaddr*) &direccion_remitente, sizeof(direccion_remitente)) == 0) {
                             char message[BUFFER_SIZE] = "SEND_MESS_ACK";
                             sendMessage(sd_ack, message, 14);
-                            char str_id[3];
+                            char str_id[4];
                             sprintf(str_id, "%03d", mensaje_a_enviar.id);
-                            sendMessage(sd_ack, str_id, 3);
+                            sendMessage(sd_ack, str_id, 4);
                         }
                         close(sd_ack);
                     }
@@ -804,7 +806,7 @@ int gestionar_envio_mensajes(struct info_usuario datos_usuario, struct mensaje m
 
     // Enviamos el mensaje al cliente
     char buffer_envio[BUFFER_SIZE] = "SEND_MESSAGE";
-    if (sendMessage(sd_cliente, buffer_envio, 13) < 0){
+    if (sendMessage(sd_cliente, buffer_envio, 14) < 0){
         // No se ha podido enviar el mensaje
         close(sd_cliente);
         return -1;
@@ -814,9 +816,9 @@ int gestionar_envio_mensajes(struct info_usuario datos_usuario, struct mensaje m
         close(sd_cliente);
         return -1;
     }
-    char str_id [3];
+    char str_id [4];
     sprintf(str_id, "%03d", mensaje_a_enviar.id);
-    if (sendMessage(sd_cliente, str_id, 3) < 0){
+    if (sendMessage(sd_cliente, str_id, 4) < 0){
         // No se ha podido enviar el mensaje
         close(sd_cliente);
         return -1;

@@ -233,12 +233,15 @@ void procesar_peticion(struct peticion datos_cliente){
         }else if(strcmp(buffer,"DISCONNECT") == 0){
             // Ahora lidiamos con el connect
             gestionar_disconnect(datos_cliente);
+
         }else if(strcmp(buffer, "USERS") == 0){
             gestionar_users(datos_cliente);
+            
         }else if(strcmp(buffer, "SEND") == 0){
             gestionar_mensajes(datos_cliente);
     }
 
 
+    }
 }
 

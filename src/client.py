@@ -3,8 +3,6 @@ import argparse
 import socket
 import threading
 
-# Variable global para controlar el cliente que esta conectado
-current_client = None
 
 class client :
 
@@ -21,6 +19,9 @@ class client :
     _port = -1
     _socket_recepcion = None
     _finalizar_thread = 0
+
+    # Variable global para controlar el cliente que esta conectado
+    _current_client = None
 
     # ******************** METHODS *******************
     # *
@@ -57,7 +58,7 @@ class client :
 
             codigo= respuesta[0]
             if(codigo == 0):
-                current_client = user
+                client._current_client = user
                 print("REGISTER OK")
                 return client.RC.OK
 
@@ -112,7 +113,7 @@ class client :
 
             codigo= respuesta[0]
             if(codigo == 0):
-                current_client = None
+                client._current_client = None
                 print("UNREGISTER OK")
                 return client.RC.OK
 
@@ -183,6 +184,7 @@ class client :
                 print("CONNECT OK")
                 client._socket_recepcion = socket_recepcion_mensajes
                 client._finalizar_thread = 0
+                client._current_client = user
                 return client.RC.OK
 
             elif(codigo == 1):
@@ -225,10 +227,9 @@ class client :
             socket_envio_peticion.connect((client._server, client._port))
             message = b'USERS\0'
             socket_envio_peticion.sendall(message)
-            message = current_client.encode() + b'\0'
+            message = client._current_client.encode() + b'\0'
             socket_envio_peticion.sendall(message)
             respuesta = socket_envio_peticion.recv(1)
-             
             if(len(respuesta) <= 0):
                 # La info no se recibió bien
                 print("CONNECTED USERS FAIL")
@@ -244,7 +245,8 @@ class client :
                 return client.RC.USER_ERROR
             
             elif (codigo == 0):
-                respuesta_2 = socket_envio_peticion.recv(3)
+                respuesta_2 = socket_envio_peticion.recv(4)
+                respuesta_2 = respuesta_2.rstrip(b'\0')
                 if (len(respuesta_2) <= 0):
                     # La info no se recibió bien
                     print("CONNECTED USERS FAIL")
@@ -282,29 +284,35 @@ class client :
         socket_recepcion_mensajes.settimeout(1.0)
         while(client._finalizar_thread == 0):
             try:
-                conexion_entrante, _ = socket_recepcion_mensajes.accept()
-                mensaje = conexion_entrante.recv(14)
-                if mensaje.decode() == 'SEND_MESS_ACK':
-                    id = conexion_entrante.recv(3)
-                    print(f"SEND MESSAGE {int(id.decode())} OK")
-                elif mensaje.decode() == 'SEND_MESSAGE':
-                    elementos = []
-                    elementos_recibidos = 0
-                    while elementos_recibidos < 3:
-                        message = conexion_entrante.recv(1024)
-                        while b'\0' in message:
-                            # Recibe nombre, id y mensaje en ese orden separados por \0
-                            mensaje_recibido, message = message.split(b'\0', 1)
-                            elementos.append(mensaje_recibido.decode())
-                            elementos_recibidos += 1
-                    print(f"MESSAGE {int(elementos[1])} FROM {elementos[0]}\n"
-                          f"{elementos[2]}")
+                while(1):
+                    conexion_entrante, _ = socket_recepcion_mensajes.accept()
+                    mensaje = conexion_entrante.recv(14)
+                    mensaje = mensaje.rstrip(b'\0')
+                    if mensaje.decode() == 'SEND_MESS_ACK':
+                        id = conexion_entrante.recv(4)
+                        id = id.rstrip(b'\0')
+                        print(f"SEND MESSAGE {int(id.decode())} OK")
+                    elif mensaje.decode() == 'SEND_MESSAGE':
+                        elementos = []
+                        elementos_recibidos = 0
+                        while elementos_recibidos < 3:
+                            message = conexion_entrante.recv(1283)
+                            while b'\0' in message:
+                                # Recibe nombre, id y mensaje en ese orden separados por \0
+                                mensaje_recibido, message = message.split(b'\0', 1)
+                                elementos.append(mensaje_recibido.decode())
+                                elementos_recibidos += 1
+                        print(f"MESSAGE {int(elementos[1])} FROM {elementos[0]}\n"
+                            f"{elementos[2]}")
 
-                conexion_entrante.close()
+                    conexion_entrante.close()
+
+            except OSError:
+                # El thread fue cerrado de forma inesperada, finalizamos la ejecución
+                break
+
             except socket.timeout:
                 continue
-            except:
-                break
             
         socket_recepcion_mensajes.close()
 
@@ -335,7 +343,7 @@ class client :
             
             codigo = respuesta[0]
             if(codigo == 0):
-                current_client = None
+                client._current_client = None
                 print("DISCONNECT OK")
                 client._finalizar_thread = 1
                 client._socket_recepcion.close()
@@ -381,7 +389,7 @@ class client :
             socket_envio_peticion.connect((client._server,client._port))
             mensaje = b'SEND\0'
             socket_envio_peticion.sendall(mensaje)
-            mensaje = current_client.encode() + b'\0'
+            mensaje = client._current_client.encode() + b'\0'
             socket_envio_peticion.sendall(mensaje)
             mensaje = user.encode() + b'\0'
             socket_envio_peticion.sendall(mensaje)
@@ -401,7 +409,8 @@ class client :
             
             codigo = respuesta[0]
             if(codigo == 0):
-                respuesta_2 = socket_envio_peticion.recv(3)
+                respuesta_2 = socket_envio_peticion.recv(4)
+                respuesta_2 = respuesta_2.rstrip(b'\0')
                 if (len(respuesta_2) <= 0):
                     # La info no se recibió bien
                     print("SEND FAIL")
