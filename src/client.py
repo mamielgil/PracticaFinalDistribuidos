@@ -295,6 +295,8 @@ class client :
                         id = conexion_entrante.recv(4)
                         id = id.rstrip(b'\0')
                         print(f"SEND MESSAGE {int(id.decode())} OK")
+                        # PREGUNTAR AL PROFE RESPECTO C>
+                        #print("c> ", end="", flush=True)  # <-- Añadir esta línea
                     elif mensaje.decode() == 'SEND_MESSAGE':
                         elementos = []
                         elementos_recibidos = 0
@@ -307,8 +309,8 @@ class client :
                                 elementos_recibidos += 1
                         print(f"MESSAGE {int(elementos[1])} FROM {elementos[0]}\n"
                             f"{elementos[2]}")
-
-                    conexion_entrante.close()
+                        # PREGUNTAR AL PROFE RESPECTO C>
+                        # print("c> ", end="", flush=True)                    conexion_entrante.close()
 
             except OSError as e:
                 # El thread fue cerrado de forma inesperada, finalizamos la ejecución
