@@ -235,8 +235,8 @@ void procesar_peticion(struct peticion datos_cliente){
             gestionar_disconnect(datos_cliente);
         }else if(strcmp(buffer, "USERS") == 0){
             gestionar_users(datos_cliente);
-        }
-        
+        }else if(strcmp(buffer, "SEND") == 0){
+            gestionar_mensajes(datos_cliente);
     }
 
 

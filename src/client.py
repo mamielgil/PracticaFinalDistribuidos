@@ -3,6 +3,9 @@ import argparse
 import socket
 import threading
 
+# Variable global para controlar el cliente que esta conectado
+current_client = None
+
 class client :
 
     # ******************** TYPES *********************
@@ -54,6 +57,7 @@ class client :
 
             codigo= respuesta[0]
             if(codigo == 0):
+                current_client = user
                 print("REGISTER OK")
                 return client.RC.OK
 
@@ -108,6 +112,7 @@ class client :
 
             codigo= respuesta[0]
             if(codigo == 0):
+                current_client = None
                 print("UNREGISTER OK")
                 return client.RC.OK
 
@@ -220,6 +225,8 @@ class client :
             socket_envio_peticion.connect((client._server, client._port))
             message = b'USERS\0'
             socket_envio_peticion.sendall(message)
+            message = current_client.encode() + b'\0'
+            socket_envio_peticion.sendall(message)
             respuesta = socket_envio_peticion.recv(1)
              
             if(len(respuesta) <= 0):
@@ -272,15 +279,34 @@ class client :
     def worker(socket_recepcion_mensajes):
         # Código que recibe los mensajes procedentes de otros clientes
         # socket_recepcion_mensajes contiene el socket que permite obtener dichos mensajes
+        socket_recepcion_mensajes.settimeout(1.0)
         while(client._finalizar_thread == 0):
-            # Aqui va el codigo de recepcion de mensajes
-            1 == 1
-            
-         
-        # El usuario habia hecho disconnect por lo que no recibe más mensajes
-        socket_recepcion_mensajes.close()
-        return
+            try:
+                conexion_entrante, _ = socket_recepcion_mensajes.accept()
+                mensaje = conexion_entrante.recv(14)
+                if mensaje.decode() == 'SEND_MESS_ACK':
+                    id = conexion_entrante.recv(3)
+                    print(f"SEND MESSAGE {int(id.decode())} OK")
+                elif mensaje.decode() == 'SEND_MESSAGE':
+                    elementos = []
+                    elementos_recibidos = 0
+                    while elementos_recibidos < 3:
+                        message = conexion_entrante.recv(1024)
+                        while b'\0' in message:
+                            # Recibe nombre, id y mensaje en ese orden separados por \0
+                            mensaje_recibido, message = message.split(b'\0', 1)
+                            elementos.append(mensaje_recibido.decode())
+                            elementos_recibidos += 1
+                    print(f"MESSAGE {int(elementos[1])} FROM {elementos[0]}\n"
+                          f"{elementos[2]}")
 
+                conexion_entrante.close()
+            except socket.timeout:
+                continue
+            except:
+                break
+            
+        socket_recepcion_mensajes.close()
 
 
     # *
@@ -309,6 +335,7 @@ class client :
             
             codigo = respuesta[0]
             if(codigo == 0):
+                current_client = None
                 print("DISCONNECT OK")
                 client._finalizar_thread = 1
                 client._socket_recepcion.close()
@@ -348,7 +375,56 @@ class client :
     # * @return ERROR the user does not exist or another error occurred
     @staticmethod
     def  send(user,  message) :
-        #  Write your code here
+                #  Write your code here
+        socket_envio_peticion = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        try:
+            socket_envio_peticion.connect((client._server,client._port))
+            mensaje = b'SEND\0'
+            socket_envio_peticion.sendall(mensaje)
+            mensaje = current_client.encode() + b'\0'
+            socket_envio_peticion.sendall(mensaje)
+            mensaje = user.encode() + b'\0'
+            socket_envio_peticion.sendall(mensaje)
+            # Como mucho el message tiene 256 caracteres
+            mensaje = message.encode() + b'\0'
+            if len(mensaje) > 256:
+                print("SEND FAIL")
+                return client.RC.ERROR
+            socket_envio_peticion.sendall(mensaje)
+
+            respuesta = socket_envio_peticion.recv(1)
+
+            if(len(respuesta)<= 0):
+                # La info no se recibió bien
+                print("SEND FAIL")
+                return client.RC.ERROR
+            
+            codigo = respuesta[0]
+            if(codigo == 0):
+                respuesta_2 = socket_envio_peticion.recv(3)
+                if (len(respuesta_2) <= 0):
+                    # La info no se recibió bien
+                    print("SEND FAIL")
+                    return client.RC.ERROR
+                # Vamos a poner como límite 999 usuarios y lo que se recibe es una cadena de texto
+                id = int(respuesta_2.decode())
+                print(f"SEND OK - MESSAGE {id}")
+                # El ACK se recibirá en el worker en background
+                return client.RC.OK
+            
+            elif(codigo == 1):
+                print("SEND FAIL, USER DOES NOT EXIST")
+                return client.RC.USER_ERROR
+            
+            elif(codigo == 2):
+                print("SEND FAIL")
+                return client.RC.ERROR
+        
+        except:
+            print("SEND FAIL")
+            return client.RC.ERROR
+        finally:
+            socket_envio_peticion.close()
         return client.RC.ERROR
 
     # *
