@@ -728,6 +728,7 @@ void gestionar_mensajes(struct peticion datos_recibidos){
         if (gestionar_envio_mensajes(datos_usuario, mensaje_a_enviar) == -1) {
             // No se ha podido enviar el mensaje al destinatario
             codigo = 2;
+            printf("s> Error no se pudo enviar mensaje\n");
             sendMessage(sd, &codigo, 1);
             flock(fd, LOCK_UN);
             close(fd);
@@ -801,6 +802,8 @@ int gestionar_envio_mensajes(struct info_usuario datos_usuario, struct mensaje m
     if(connect(sd_cliente,(struct sockaddr*) &direccion_cliente,sizeof(direccion_cliente)) < 0){
         // No se ha podido conectar con el cliente
         close(sd_cliente);
+        printf("Error en el connect\n");
+        printf("  IP='%s' puerto=%d\n", datos_usuario.ip, datos_usuario.puerto_escucha_cliente);
         return -1;
     }
 

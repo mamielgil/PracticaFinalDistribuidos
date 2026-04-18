@@ -2,6 +2,7 @@ from enum import Enum
 import argparse
 import socket
 import threading
+import errno
 
 
 class client :
@@ -150,7 +151,9 @@ class client :
         socket_recepcion_mensajes.bind(("0.0.0.0",0))
         socket_recepcion_mensajes.listen(1)
         puerto = socket_recepcion_mensajes.getsockname()[1]
+
         # Crear un hilo para recibir mensajes
+        client._finalizar_thread = 0
         thread_recibo_mensajes = threading.Thread(target=client.worker,args = (socket_recepcion_mensajes,))
         thread_recibo_mensajes.daemon = True
         thread_recibo_mensajes.start()
@@ -307,9 +310,11 @@ class client :
 
                     conexion_entrante.close()
 
-            except OSError:
+            except OSError as e:
                 # El thread fue cerrado de forma inesperada, finalizamos la ejecución
-                break
+                if e.errno == errno.EBADF:
+                    break
+                continue
 
             except socket.timeout:
                 continue
@@ -429,8 +434,8 @@ class client :
                 print("SEND FAIL")
                 return client.RC.ERROR
         
-        except:
-            print("SEND FAIL")
+        except Exception as e:
+            print(f"SEND FAIL{e}")
             return client.RC.ERROR
         finally:
             socket_envio_peticion.close()
