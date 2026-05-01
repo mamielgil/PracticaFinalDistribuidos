@@ -25,7 +25,6 @@ int registrar_peticion(char *nombre_usuario ,char *op, char *fichero){
     
     // Cogemos la variable de entorno definida y mandamos la peticion al servidor
     char *host  = getenv("LOG_RPC_IP");
-    int ret;
     int resultado = login_peticion(host, nombre_usuario, op, fichero);
     
     return resultado;

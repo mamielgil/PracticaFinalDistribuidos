@@ -402,9 +402,11 @@ class client :
             # Como mucho el message tiene 256 caracteres
             # Obtenemos el mensaje con un único espacio entre palabras
             message = proxy_espacio_unico(message)
+
             if(message == None):
                 print("SEND FAIL")
                 return client.RC.ERROR
+            
             mensaje = message.encode() + b'\0'
             if len(mensaje) > 256:
                 print("SEND FAIL")
