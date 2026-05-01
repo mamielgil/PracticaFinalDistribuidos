@@ -17,7 +17,7 @@ clean_rpc:
 	$(MAKE) -C ./src/RPC_server clean
 
 servidor: servidor.o gestionar_peticiones.o lines.o
-	$(CC) -o $@ $^ $(LDLIBS) -L./src/RPC_server -lRPC_ampliacion -lnsl -ltirpc
+	$(CC) -o $@ $^ $(LDLIBS) -L./src/RPC_server -lRPC_ampliacion -lnsl -ltirpc -Wl,-rpath,./src/RPC_server
 
 servidor.o: src/servidor.c include/gestionar_peticiones.h include/lines.h
 	$(CC) $(CFLAGS) -c $< -o $@
