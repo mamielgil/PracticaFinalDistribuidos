@@ -1,0 +1,1 @@
+int login_peticion(char *host, char*user, char *op, char *fichero);

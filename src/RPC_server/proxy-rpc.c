@@ -5,8 +5,9 @@
  */
 
 #include "RPC_ampliacion.h"
+#include "proxy-rpc.h"
 
-int login_1(char *host, char*user, char *op, char *fichero)
+int login_peticion(char *host, char*user, char *op, char *fichero)
 {
 	CLIENT *clnt;
 	enum clnt_stat retval_1;
@@ -33,25 +34,4 @@ int login_1(char *host, char*user, char *op, char *fichero)
 	clnt_destroy (clnt);
     return result_1;
 #endif	 /* DEBUG */
-}
-
-
-int main (int argc, char *argv[])
-{
-    char *host  = getenv("LOG_RPC_IP");
-    int ret;
-
-    if(host == NULL){
-        exit(-1);
-    }
-
-	if (argc < 2) {
-		printf ("usage: %s server_host\n", argv[0]);
-		exit (1);
-	}
-	host = argv[1];
-
-    login_1(host,"usuario- 1","SEND","");
-	login_1 (host, "usuario-1", "SENDATTACH","/tmp/file1.txt");
-    exit (0);
 }

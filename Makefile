@@ -24,7 +24,7 @@ servidor.o: src/servidor.c include/gestionar_peticiones.h include/lines.h
 
 
 gestionar_peticiones.o: src/gestionar_peticiones.c include/gestionar_peticiones.h include/lines.h
-	$(CC) $(CFLAGS) -I./src/RPC_server -I/usr/include/tirpc -c $< -o $@
+	$(CC) $(CFLAGS) -I./include -c $< -o $@
 
 lines.o: src/lines.c include/lines.h
 	$(CC) $(CFLAGS) -c $< -o $@

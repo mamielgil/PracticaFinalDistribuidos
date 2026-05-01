@@ -15,11 +15,21 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <dirent.h>
-#include "RPC_ampliacion.h"
+#include "proxy-rpc.h"
 
 extern pthread_mutex_t mi_mutex;
 
 unsigned int id_mensaje_actual = 0;
+
+int registrar_peticion(char *nombre_usuario ,char *op, char *fichero){
+    
+    // Cogemos la variable de entorno definida y mandamos la peticion al servidor
+    char *host  = getenv("LOG_RPC_IP");
+    int ret;
+    int resultado = login_peticion(host, nombre_usuario, op, fichero);
+    
+    return resultado;
+}
 
 char** leer_users(int* num_users_conn){
     DIR *directorio;
@@ -196,6 +206,9 @@ void gestionar_register(struct peticion datos_recibidos){
         sendMessage(sd,&codigo,1);
         printf("s> REGISTER %s OK\n",nombre_usuario);
 
+        // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
+        registrar_peticion(nombre_usuario,"REGISTER","");
+
     }else{
         // Enviamos el codigo de error y finalizamos la ejecución
             codigo = 2;
@@ -256,6 +269,9 @@ void gestionar_unregister(struct peticion datos_recibidos){
             codigo = 0;
             sendMessage(sd,&codigo,1);
             printf("s> UNREGISTER %s OK\n", nombre_usuario);
+
+            // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
+            registrar_peticion(nombre_usuario,"UNREGISTER","");
             
 
         } else{
@@ -365,6 +381,9 @@ void gestionar_users(struct peticion datos_recibidos){
                 free (users[i]);
             }
             free(users);
+
+            // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
+            registrar_peticion(nombre_usuario,"USERS","");
             return;
         }
 }
@@ -496,6 +515,9 @@ void gestionar_connect(struct peticion datos_recibidos){
         sendMessage(sd,&codigo,1);
         printf("s> CONNECT %s OK\n",nombre_usuario);
 
+        // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
+        registrar_peticion(nombre_usuario,"CONNECT","");
+
         for(int i = 0; i < num_fallidos; i++){
             if(writeFull(fd,&mensajes_fallidos[i],sizeof(struct mensaje)) != 0){
                 // Hubo un error en reescribir dicho mensaje
@@ -618,6 +640,10 @@ void gestionar_disconnect(struct peticion datos_recibidos){
         codigo = 0;
         sendMessage(sd,&codigo,1);
         printf("s> DISCONNECT %s OK\n",nombre_usuario);
+
+        // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
+        registrar_peticion(nombre_usuario,"DISCONNECT","");
+
         // Finalizamos la ejecución, se hicieron todos los cambios
         flock(fd,LOCK_UN);
         close(fd); 
@@ -717,6 +743,10 @@ void gestionar_mensajes(struct peticion datos_recibidos){
             flock(fd,LOCK_UN);
             close(fd); 
             printf("s> MESSAGE %s FROM %s TO %s STORED\n",str_id, nombre_usuario_remitente, nombre_usuario_destino);
+            
+            // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
+            registrar_peticion(nombre_usuario_remitente,"SEND","");
+
             return;
         }
         if (gestionar_envio_mensajes(datos_usuario, mensaje_a_enviar) == -1) {
@@ -733,6 +763,9 @@ void gestionar_mensajes(struct peticion datos_recibidos){
         sendMessage(sd, str_id, 4);
         printf("s> SEND MESSAGE %s FROM %s TO %s\n", str_id, nombre_usuario_remitente, nombre_usuario_destino);
         
+        // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
+        registrar_peticion(nombre_usuario_remitente,"SEND","");
+
         // Ahora obtenemos la información del remitente para enviarle el ACK
         char ruta_remitente[BUFFER_SIZE + 10];
         sprintf(ruta_remitente,"clientes/%s", nombre_usuario_remitente);
