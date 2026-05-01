@@ -4,12 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="83c2ba6a-31a7-49d3-9b97-166309a754e2" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/include/gestionar_peticiones.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/gestionar_peticiones.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/client.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/client.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gestionar_peticiones.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/gestionar_peticiones.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/servidor.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/servidor.c" afterDir="false" />
-    </list>
+    <list default="true" id="83c2ba6a-31a7-49d3-9b97-166309a754e2" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />

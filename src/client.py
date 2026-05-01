@@ -1,4 +1,5 @@
 from enum import Enum
+from servicio_web_final.espacios_clnt import proxy_espacio_unico
 import argparse
 import socket
 import threading
@@ -392,6 +393,7 @@ class client :
     def  send(user,  message) :
                 #  Write your code here
         socket_envio_peticion = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+
         try:
             socket_envio_peticion.connect((client._server,client._port))
             mensaje = b'SEND\0'
@@ -401,6 +403,11 @@ class client :
             mensaje = user.encode() + b'\0'
             socket_envio_peticion.sendall(mensaje)
             # Como mucho el message tiene 256 caracteres
+            # Obtenemos el mensaje con un único espacio entre palabras
+            message = proxy_espacio_unico(message)
+            if(message == None):
+                print("SEND FAIL")
+                return client.RC.ERROR
             mensaje = message.encode() + b'\0'
             if len(mensaje) > 256:
                 print("SEND FAIL")
