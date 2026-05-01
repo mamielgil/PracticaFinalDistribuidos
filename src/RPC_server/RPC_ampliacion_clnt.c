@@ -10,10 +10,10 @@
 static struct timeval TIMEOUT = { 25, 0 };
 
 enum clnt_stat 
-registrar_1(struct peticion arg1, int *clnt_res,  CLIENT *clnt)
+registrar_1(struct peticion_RPC arg1, int *clnt_res,  CLIENT *clnt)
 {
 	return (clnt_call(clnt, registrar,
-		(xdrproc_t) xdr_peticion, (caddr_t) &arg1,
+		(xdrproc_t) xdr_peticion_RPC, (caddr_t) &arg1,
 		(xdrproc_t) xdr_int, (caddr_t) clnt_res,
 		TIMEOUT));
 }

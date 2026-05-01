@@ -1,5 +1,5 @@
 
-struct peticion{
+struct peticion_RPC{
     char nombre[256];
     char operacion[256];
     char fichero[256];
@@ -8,6 +8,6 @@ struct peticion{
 
   program LOGIN  {
       version LOGINVER1 {
-         int registrar (struct peticion) = 1;
+         int registrar (struct peticion_RPC) = 1;
       } = 1;
    } = 100525454;

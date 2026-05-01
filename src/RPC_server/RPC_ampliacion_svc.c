@@ -17,7 +17,7 @@
 #endif
 
 int
-_registrar_1 (struct peticion  *argp, void *result, struct svc_req *rqstp)
+_registrar_1 (struct peticion_RPC  *argp, void *result, struct svc_req *rqstp)
 {
 	return (registrar_1_svc(*argp, result, rqstp));
 }
@@ -26,7 +26,7 @@ static void
 login_1(struct svc_req *rqstp, register SVCXPRT *transp)
 {
 	union {
-		struct peticion registrar_1_arg;
+		struct peticion_RPC registrar_1_arg;
 	} argument;
 	union {
 		int registrar_1_res;
@@ -41,7 +41,7 @@ login_1(struct svc_req *rqstp, register SVCXPRT *transp)
 		return;
 
 	case registrar:
-		_xdr_argument = (xdrproc_t) xdr_peticion;
+		_xdr_argument = (xdrproc_t) xdr_peticion_RPC;
 		_xdr_result = (xdrproc_t) xdr_int;
 		local = (bool_t (*) (char *, void *,  struct svc_req *))_registrar_1;
 		break;

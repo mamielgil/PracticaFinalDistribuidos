@@ -15,16 +15,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <dirent.h>
+#include "RPC_ampliacion.h"
 
 extern pthread_mutex_t mi_mutex;
 
-/* PREGUNTAR QUE CODIGO DE ERROR PONER SI ALGUN MENSAJE EN ESPERA NO SE CONSIGUE ENVIAR
-EN LA FUNCION GESTIONAR_CONNECT
-
-PREGUNTAR SI ES NORMAL QUE SE VEA LA IP 0.0.0.0 AL HACER EL INIT DEL SERVER
-
-SE PUEDE ASUMIR TAMAÑO DEL BUFFER DE MENSAJES A RECIBIR GRANDE Y YA ESTA? O USAR MALLOC
-*/
 unsigned int id_mensaje_actual = 0;
 
 char** leer_users(int* num_users_conn){

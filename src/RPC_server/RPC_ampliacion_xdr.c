@@ -6,7 +6,7 @@
 #include "RPC_ampliacion.h"
 
 bool_t
-xdr_peticion (XDR *xdrs, peticion *objp)
+xdr_peticion_RPC (XDR *xdrs, peticion_RPC *objp)
 {
 	register int32_t *buf;
 

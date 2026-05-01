@@ -22,12 +22,12 @@ OBJECTS_SVC = $(SOURCES_SVC.c:%.c=%.o) $(TARGETS_SVC.c:%.c=%.o)
 
 CPPFLAGS += -D_REENTRANT
 CFLAGS += -g -I/usr/include/tirpc 
-LDLIBS += -lpthread -ltirpc
- RPCGENFLAGS = 
+LDLIBS += -lnsl -lpthread -ltirpc
+RPCGENFLAGS = 
 
 # Targets 
 
-all : $(CLIENT) $(SERVER)
+all : $(SERVER) libRPC_ampliacion.so
 
 $(TARGETS) : $(SOURCES.x) 
 	rpcgen $(RPCGENFLAGS) $(SOURCES.x)
@@ -36,12 +36,12 @@ $(OBJECTS_CLNT) : $(SOURCES_CLNT.c) $(SOURCES_CLNT.h) $(TARGETS_CLNT.c)
 
 $(OBJECTS_SVC) : $(SOURCES_SVC.c) $(SOURCES_SVC.h) $(TARGETS_SVC.c) 
 
-$(CLIENT) : $(OBJECTS_CLNT) 
-	$(LINK.c) -o $(CLIENT) $(OBJECTS_CLNT) $(LDLIBS) 
-
 $(SERVER) : $(OBJECTS_SVC) 
 	$(LINK.c) -o $(SERVER) $(OBJECTS_SVC) $(LDLIBS)
 
+libRPC_ampliacion.so: proxy-rpc.o RPC_ampliacion_clnt.o RPC_ampliacion_xdr.o
+	$(CC) -shared -o $@ $^ $(LDLIBS)
+
  clean:
-	 $(RM) core  $(OBJECTS_CLNT) $(OBJECTS_SVC) $(CLIENT) $(SERVER)
+	 $(RM) core  $(OBJECTS_CLNT) $(OBJECTS_SVC) $(CLIENT) $(SERVER) libRPC_ampliacion.so
 

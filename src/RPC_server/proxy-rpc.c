@@ -6,13 +6,12 @@
 
 #include "RPC_ampliacion.h"
 
-void
-log_1(char *host, char*user, char *op, char *fichero)
+int login_1(char *host, char*user, char *op, char *fichero)
 {
 	CLIENT *clnt;
 	enum clnt_stat retval_1;
 	int result_1;
-	struct peticion registrar_1_arg1;
+	struct peticion_RPC registrar_1_arg1;
 
 #ifndef	DEBUG
 	clnt = clnt_create (host, LOGIN, LOGINVER1, "tcp");
@@ -52,7 +51,7 @@ int main (int argc, char *argv[])
 	}
 	host = argv[1];
 
-    log_1(host,"usuario- 1","SEND","");
-	log_1 (host, "usuario-1", "SENDATTACH","/tmp/file1.txt");
+    login_1(host,"usuario- 1","SEND","");
+	login_1 (host, "usuario-1", "SENDATTACH","/tmp/file1.txt");
     exit (0);
 }

@@ -6,7 +6,7 @@ CFLAGS = -Wall -fPIC -pthread -Iinclude
 LDLIBS = -pthread
 
 
-all: servidor make_rpc
+all: make_rpc servidor 
 
 # Llamamos al makefile que compila el servidor RPC
 make_rpc:
@@ -17,14 +17,14 @@ clean_rpc:
 	$(MAKE) -C ./src/RPC_server clean
 
 servidor: servidor.o gestionar_peticiones.o lines.o
-	$(CC) -o $@ $^ $(LDLIBS)
+	$(CC) -o $@ $^ $(LDLIBS) -L./src/RPC_server -lRPC_ampliacion -lnsl -ltirpc
 
 servidor.o: src/servidor.c include/gestionar_peticiones.h include/lines.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 
 gestionar_peticiones.o: src/gestionar_peticiones.c include/gestionar_peticiones.h include/lines.h
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -I./src/RPC_server -I/usr/include/tirpc -c $< -o $@
 
 lines.o: src/lines.c include/lines.h
 	$(CC) $(CFLAGS) -c $< -o $@

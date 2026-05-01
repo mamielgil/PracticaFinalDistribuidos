@@ -15,20 +15,20 @@ extern "C" {
 #endif
 
 
-struct peticion {
+struct peticion_RPC {
 	char nombre[256];
 	char operacion[256];
 	char fichero[256];
 };
-typedef struct peticion peticion;
+typedef struct peticion_RPC peticion_RPC;
 
 #define LOGIN 100525454
 #define LOGINVER1 1
 
 #if defined(__STDC__) || defined(__cplusplus)
 #define registrar 1
-extern  enum clnt_stat registrar_1(struct peticion , int *, CLIENT *);
-extern  bool_t registrar_1_svc(struct peticion , int *, struct svc_req *);
+extern  enum clnt_stat registrar_1(struct peticion_RPC , int *, CLIENT *);
+extern  bool_t registrar_1_svc(struct peticion_RPC , int *, struct svc_req *);
 extern int login_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 
 #else /* K&R C */
@@ -41,10 +41,10 @@ extern int login_1_freeresult ();
 /* the xdr functions */
 
 #if defined(__STDC__) || defined(__cplusplus)
-extern  bool_t xdr_peticion (XDR *, peticion*);
+extern  bool_t xdr_peticion_RPC (XDR *, peticion_RPC*);
 
 #else /* K&R C */
-extern bool_t xdr_peticion ();
+extern bool_t xdr_peticion_RPC ();
 
 #endif /* K&R C */
 

@@ -6,7 +6,7 @@
 
 #include "RPC_ampliacion.h"
 
-bool_t registrar_1_svc(struct peticion arg1, int *result,  struct svc_req *rqstp)
+bool_t registrar_1_svc(struct peticion_RPC arg1, int *result,  struct svc_req *rqstp)
 {
 	bool_t retval;
 
@@ -27,7 +27,7 @@ bool_t registrar_1_svc(struct peticion arg1, int *result,  struct svc_req *rqstp
 }
 
 int
-log_1_freeresult (SVCXPRT *transp, xdrproc_t xdr_result, caddr_t result)
+login_1_freeresult (SVCXPRT *transp, xdrproc_t xdr_result, caddr_t result)
 {
 	xdr_free (xdr_result, result);
 
