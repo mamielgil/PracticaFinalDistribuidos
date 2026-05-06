@@ -214,6 +214,7 @@ void procesar_peticion(struct peticion datos_cliente){
     // Inicializamos un buffer donde vamos a recibir los params
     char buffer[BUFFER_SIZE];
     int sd = datos_cliente.socket_cliente;
+    
     // Recibimos la operación a realizar
     if(readLine(sd,buffer,BUFFER_SIZE) > 0){
 
@@ -239,7 +240,10 @@ void procesar_peticion(struct peticion datos_cliente){
             
         }else if(strcmp(buffer, "SEND") == 0){
             gestionar_mensajes(datos_cliente);
-    }
+
+        } else if(strcmp(buffer,"SENDATTACH") == 0){
+            gestionar_mensaje_attach(datos_cliente);
+        }
 
 
     }
