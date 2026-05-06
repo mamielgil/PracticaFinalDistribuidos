@@ -90,7 +90,7 @@ char** leer_users(int* num_users_conn){
             }
             if (datos_usuario.estado == 1){
                 if (*num_users_conn >= current_size){
-                    // Hemos llegado al límite de usuarios que podemos enviar, devolvemos error
+                    // Hemos llegado al límite de usuarios que podemos enviar, aumentanos buffer
                     char **tmp = realloc(users, sizeof(char*) * (current_size + 10));
                     current_size += 10;
                     if (tmp == NULL) {
