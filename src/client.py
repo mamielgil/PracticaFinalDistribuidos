@@ -290,9 +290,14 @@ class client :
             try:
                 while(1):
                     conexion_entrante, _ = socket_recepcion_mensajes.accept()
-                    mensaje = conexion_entrante.recv(14)
+                    mensaje = conexion_entrante.recv(24)
                     mensaje = mensaje.rstrip(b'\0')
                     if mensaje.decode() == 'SEND_MESS_ACK':
+                        id = conexion_entrante.recv(4)
+                        id = id.rstrip(b'\0')
+                        print(f"SEND MESSAGE {int(id.decode())} OK")
+                    
+                    elif mensaje.decode() == 'SEND_MESSAGE_ATTACH_ACK':
                         id = conexion_entrante.recv(4)
                         id = id.rstrip(b'\0')
                         print(f"SEND MESSAGE {int(id.decode())} OK")
@@ -301,7 +306,8 @@ class client :
                         elementos = []
                         elementos_recibidos = 0
                         while elementos_recibidos < 3:
-                            message = conexion_entrante.recv(1283)
+                            # El mensaje se recibe como 1285 porque sería el máximo que se puede recibir teniendo en cuenta el tamaño máximo del mensaje (255 + 1) y el nombre de usuario (1024 + 1) y el id (3 + 1)
+                            message = conexion_entrante.recv(1285)
                             while b'\0' in message:
                                 # Recibe nombre, id y mensaje en ese orden separados por \0
                                 mensaje_recibido, message = message.split(b'\0', 1)
@@ -309,6 +315,21 @@ class client :
                                 elementos_recibidos += 1
                         print(f"MESSAGE {int(elementos[1])} FROM {elementos[0]}\n"
                             f"{elementos[2]}")
+                        
+                    elif mensaje.decode() == 'SEND_MESSAGE_ATTACH':
+                        elementos = []
+                        elementos_recibidos = 0
+                        # En este caso recibimos 4 elementos, ya que añadimos el nombre del archivo
+                        while elementos_recibidos < 4:
+                            # Por ello se le añade a 1285 256, que sería 1541
+                            message = conexion_entrante.recv(1541)
+                            while b'\0' in message:
+                                # Recibe nombre, id y mensaje en ese orden separados por \0
+                                mensaje_recibido, message = message.split(b'\0', 1)
+                                elementos.append(mensaje_recibido.decode())
+                                elementos_recibidos += 1
+                        print(f"MESSAGE {int(elementos[1])} FROM {elementos[0]}\n"
+                            f"{elementos[2]}\n END \n FILE {elementos[3]}")
 
             except OSError as e:
                 # El thread fue cerrado de forma inesperada, finalizamos la ejecución
@@ -408,7 +429,7 @@ class client :
                 return client.RC.ERROR
             
             mensaje = message.encode() + b'\0'
-            if len(mensaje) > 256:
+            if len(mensaje) > 255:
                 print("SEND FAIL")
                 return client.RC.ERROR
             socket_envio_peticion.sendall(mensaje)
@@ -459,9 +480,72 @@ class client :
     # * @return ERROR the user does not exist or another error occurred
     @staticmethod
     def  sendAttach(user,  file,  message) :
-        #  Write your code here
-        return client.RC.ERROR
+                #  Write your code here
+        socket_envio_peticion = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 
+        try:
+            socket_envio_peticion.connect((client._server,client._port))
+            mensaje = b'SENDATTACH\0'
+            socket_envio_peticion.sendall(mensaje)
+            mensaje = client._current_client.encode() + b'\0'
+            socket_envio_peticion.sendall(mensaje)
+            mensaje = user.encode() + b'\0'
+            socket_envio_peticion.sendall(mensaje)
+            # Como mucho el message tiene 256 caracteres
+            # Obtenemos el mensaje con un único espacio entre palabras
+            message = proxy_espacio_unico(message)
+
+            if(message == None):
+                print("SEND FAIL")
+                return client.RC.ERROR
+            
+            mensaje = message.encode() + b'\0'
+            if len(mensaje) > 255:
+                print("SENDATTACH FAIL")
+                return client.RC.ERROR
+            socket_envio_peticion.sendall(mensaje)
+
+            mensaje = file.encode() + b'\0'
+            if len(mensaje) > 255:
+                print("SENDATTACH FAIL")
+                return client.RC.ERROR
+            socket_envio_peticion.sendall(mensaje)
+
+            respuesta = socket_envio_peticion.recv(1)
+
+            if(len(respuesta)<= 0):
+                # La info no se recibió bien
+                print("SENDATTACH FAIL")
+                return client.RC.ERROR
+            
+            codigo = respuesta[0]
+            if(codigo == 0):
+                respuesta_2 = socket_envio_peticion.recv(4)
+                respuesta_2 = respuesta_2.rstrip(b'\0')
+                if (len(respuesta_2) <= 0):
+                    # La info no se recibió bien
+                    print("SENDATTACH FAIL")
+                    return client.RC.ERROR
+                # Vamos a poner como límite 999 usuarios y lo que se recibe es una cadena de texto
+                id = int(respuesta_2.decode())
+                print(f"SENDATTACH OK - MESSAGE {id}")
+                # El ACK se recibirá en el worker en background
+                return client.RC.OK
+            
+            elif(codigo == 1):
+                print("SENDATTACH FAIL, USER DOES NOT EXIST")
+                return client.RC.USER_ERROR
+            
+            elif(codigo == 2):
+                print("SENDATTACH FAIL")
+                return client.RC.ERROR
+        
+        except Exception as e:
+            print(f"SENDATTACH FAIL{e}")
+            return client.RC.ERROR
+        finally:
+            socket_envio_peticion.close()
+        return client.RC.ERROR
     # *
     # **
     # * @brief Command interpreter for the client. It calls the protocol functions.

@@ -104,7 +104,9 @@ char** leer_users(int* num_users_conn){
                     }
                     users = tmp;
                 }
-                users[*num_users_conn] = strdup(datos_usuario.nombre_cliente);
+                // Modificamos la función para mandar el struct de la información para la parte 2
+                users[*num_users_conn] = malloc(sizeof(char) * (BUFFER_SIZE));
+                sprintf(users[*num_users_conn], "%s :: %s :: %d\0", datos_usuario.nombre_cliente, datos_usuario.ip, datos_usuario.puerto_escucha_cliente);
                 (*num_users_conn)++;
             }
             flock(fd, LOCK_UN);
@@ -124,11 +126,12 @@ void gestionar_register(struct peticion datos_recibidos){
     // El codigo de error es un unico byte
     char codigo;
     int sd = datos_recibidos.socket_cliente;
+    
     // Obtenemos el usuario
     if(readLine(sd,nombre_usuario,BUFFER_SIZE) > 0){
         // Hemos obtenido texto, asumimos que es el usuario a registrar
-        
-        if(mkdir("clientes",0700) == -1){
+        registrar_peticion(nombre_usuario,"REGISTER","");
+        if(mkdir("clientes", 0700) == -1){
             
             if(errno != EEXIST){
                 // Hubo un error que no fue debido a que el directorio ya existía
@@ -205,9 +208,6 @@ void gestionar_register(struct peticion datos_recibidos){
         sendMessage(sd,&codigo,1);
         printf("s> REGISTER %s OK\n",nombre_usuario);
 
-        // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
-        registrar_peticion(nombre_usuario,"REGISTER","");
-
     }else{
         // Enviamos el codigo de error y finalizamos la ejecución
             codigo = 2;
@@ -230,7 +230,8 @@ void gestionar_unregister(struct peticion datos_recibidos){
     int sd = datos_recibidos.socket_cliente;
     // Obtenemos el usuario
     if(readLine(sd,nombre_usuario,BUFFER_SIZE) > 0){
-        
+        // Hemos obtenido el nombre de usuario, registramos la operación en el servidor rpc
+        registrar_peticion(nombre_usuario,"UNREGISTER","");
         // Verificamos que exista un usuario con ese nombre. Para ello accedemos al directorio
         // y comprobamos si el archivo ya existe
         
@@ -269,10 +270,6 @@ void gestionar_unregister(struct peticion datos_recibidos){
             sendMessage(sd,&codigo,1);
             printf("s> UNREGISTER %s OK\n", nombre_usuario);
 
-            // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
-            registrar_peticion(nombre_usuario,"UNREGISTER","");
-            
-
         } else{
              codigo = 2;
             sendMessage(sd, &codigo,1);
@@ -298,7 +295,9 @@ void gestionar_users(struct peticion datos_recibidos){
     int sd = datos_recibidos.socket_cliente;
     char nombre_usuario[BUFFER_SIZE];
     char num_users_str[4];
-    if (readLine(sd,nombre_usuario,BUFFER_SIZE) > 0){    
+    if (readLine(sd,nombre_usuario,BUFFER_SIZE) > 0){
+        // Hemos obtenido el nombre de usuario, registramos la operación en el servidor rpc
+        registrar_peticion(nombre_usuario,"USERS","");    
         // Verificamos que exista un usuario con ese nombre. Para ello accedemos al directorio y comprobamos si el archivo ya existe
         char ruta[BUFFER_SIZE + 10];
         sprintf(ruta,"clientes/%s",nombre_usuario);
@@ -380,9 +379,6 @@ void gestionar_users(struct peticion datos_recibidos){
                 free (users[i]);
             }
             free(users);
-
-            // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
-            registrar_peticion(nombre_usuario,"USERS","");
             return;
         }
 }
@@ -396,12 +392,12 @@ void gestionar_connect(struct peticion datos_recibidos){
     char buffer_recepcion[BUFFER_SIZE];
     // Obtenemos el usuario
     if(readLine(sd,buffer_recepcion,BUFFER_SIZE) > 0){
-
-          // Antes de comprobar al usuario, también recibimos el puerto
+        // Antes de comprobar al usuario, también recibimos el puerto
         char nombre_usuario[BUFFER_SIZE];
-
         // Guardamos el nombre de usuario
         strcpy(nombre_usuario,buffer_recepcion);
+        // Hemos obtenido el nombre de usuario, registramos la operación en el servidor rpc
+        registrar_peticion(buffer_recepcion,"CONNECT","");
 
         if(readLine(sd,buffer_recepcion,BUFFER_SIZE) <= 0){
             // No se ha conseguido obtener el puerto
@@ -514,9 +510,6 @@ void gestionar_connect(struct peticion datos_recibidos){
         sendMessage(sd,&codigo,1);
         printf("s> CONNECT %s OK\n",nombre_usuario);
 
-        // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
-        registrar_peticion(nombre_usuario,"CONNECT","");
-
         for(int i = 0; i < num_fallidos; i++){
             if(writeFull(fd,&mensajes_fallidos[i],sizeof(struct mensaje)) != 0){
                 // Hubo un error en reescribir dicho mensaje
@@ -557,7 +550,7 @@ void gestionar_disconnect(struct peticion datos_recibidos){
     char nombre_usuario[BUFFER_SIZE];
     // Obtenemos el usuario
     if(readLine(sd,nombre_usuario,BUFFER_SIZE) > 0){  
-
+        registrar_peticion(nombre_usuario,"DISCONNECT","");
         // Verificamos que exista un usuario con ese nombre. Para ello accedemos al directorio y comprobamos si el archivo ya existe
         char ruta[BUFFER_SIZE + 10];
         sprintf(ruta,"clientes/%s",nombre_usuario);
@@ -640,9 +633,6 @@ void gestionar_disconnect(struct peticion datos_recibidos){
         sendMessage(sd,&codigo,1);
         printf("s> DISCONNECT %s OK\n",nombre_usuario);
 
-        // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
-        registrar_peticion(nombre_usuario,"DISCONNECT","");
-
         // Finalizamos la ejecución, se hicieron todos los cambios
         flock(fd,LOCK_UN);
         close(fd); 
@@ -666,7 +656,9 @@ void gestionar_mensajes(struct peticion datos_recibidos){
     char nombre_usuario_destino[BUFFER_SIZE];
     char text_message[256];
     // Obtenemos el usuario
-    if(readLine(sd,nombre_usuario_remitente,BUFFER_SIZE) > 0){  
+    if(readLine(sd,nombre_usuario_remitente,BUFFER_SIZE) > 0){        
+        // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
+        registrar_peticion(nombre_usuario_remitente,"SEND","");
         if (readLine(sd,nombre_usuario_destino,BUFFER_SIZE) <= 0){
             // No se ha conseguido obtener el nombre del destinatario
             codigo = 2;
@@ -742,10 +734,6 @@ void gestionar_mensajes(struct peticion datos_recibidos){
             flock(fd,LOCK_UN);
             close(fd); 
             printf("s> MESSAGE %s FROM %s TO %s STORED\n",str_id, nombre_usuario_remitente, nombre_usuario_destino);
-            
-            // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
-            registrar_peticion(nombre_usuario_remitente,"SEND","");
-
             return;
         }
         if (gestionar_envio_mensajes(datos_usuario, mensaje_a_enviar) == -1) {
@@ -761,9 +749,6 @@ void gestionar_mensajes(struct peticion datos_recibidos){
         sendMessage(sd,&codigo,1);
         sendMessage(sd, str_id, 4);
         printf("s> SEND MESSAGE %s FROM %s TO %s\n", str_id, nombre_usuario_remitente, nombre_usuario_destino);
-        
-        // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
-        registrar_peticion(nombre_usuario_remitente,"SEND","");
 
         // Ahora obtenemos la información del remitente para enviarle el ACK
         char ruta_remitente[BUFFER_SIZE + 10];
@@ -784,7 +769,7 @@ void gestionar_mensajes(struct peticion datos_recibidos){
                         
                         if(connect(sd_ack, (struct sockaddr*) &direccion_remitente, sizeof(direccion_remitente)) == 0) {
                             char message[BUFFER_SIZE] = "SEND_MESS_ACK";
-                            sendMessage(sd_ack, message, 14);
+                            sendMessage(sd_ack, message, 24);
                             char str_id[4];
                             sprintf(str_id, "%03d", mensaje_a_enviar.id);
                             sendMessage(sd_ack, str_id, 4);
@@ -835,7 +820,7 @@ int gestionar_envio_mensajes(struct info_usuario datos_usuario, struct mensaje m
 
     // Enviamos el mensaje al cliente
     char buffer_envio[BUFFER_SIZE] = "SEND_MESSAGE";
-    if (sendMessage(sd_cliente, buffer_envio, 14) < 0){
+    if (sendMessage(sd_cliente, buffer_envio, 24) < 0){
         // No se ha podido enviar el mensaje
         close(sd_cliente);
         return -1;
@@ -861,3 +846,221 @@ int gestionar_envio_mensajes(struct info_usuario datos_usuario, struct mensaje m
     close(sd_cliente);
     return 0;
 }
+
+int gestionar_mensaje_attach(struct peticion datos_recibidos){
+         // El codigo de error es un unico byte
+    char codigo;
+    int sd = datos_recibidos.socket_cliente;
+    char nombre_usuario_remitente[BUFFER_SIZE];
+    char nombre_usuario_destino[BUFFER_SIZE];
+    char text_message[256];
+    char file_name[256];
+    // Obtenemos el usuario
+    if(readLine(sd,nombre_usuario_remitente,BUFFER_SIZE) > 0){        
+        // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
+        registrar_peticion(nombre_usuario_remitente,"SEND","");
+        if (readLine(sd,nombre_usuario_destino,BUFFER_SIZE) <= 0){
+            // No se ha conseguido obtener el nombre del destinatario
+            codigo = 2;
+            sendMessage(sd, &codigo, 1);
+            return;
+        }
+
+        if (readLine(sd,text_message,256) <= 0){
+            // No se ha conseguido obtener el mensaje
+            codigo = 2;
+            sendMessage(sd, &codigo, 1);
+            return;
+        }
+
+        if (readLine(sd,file_name,256) <= 0){
+            // No se ha conseguido obtener el mensaje
+            codigo = 2;
+            sendMessage(sd, &codigo, 1);
+            return;
+        }
+
+        // Verificamos que exista un usuario con ese nombre. Para ello accedemos al directorio y comprobamos si el archivo ya existe
+        char ruta_destino[BUFFER_SIZE + 10];
+        sprintf(ruta_destino,"clientes/%s", nombre_usuario_destino);
+
+        int fd = open(ruta_destino, O_RDWR);
+
+        if(fd < 0){
+            // El usuario remitente no existe, se envia código 1 al cliente
+            codigo = 1;
+            sendMessage(sd, &codigo, 1);
+            return;
+        }
+
+         if(flock(fd,LOCK_EX) == -1){
+            // Ha ocurrido algún error inesperado
+            codigo = 2;
+            sendMessage(sd, &codigo, 1);
+            // Creamos el mensaje de error, no se ha podido leer el nombre de usuario
+            close(fd);
+            return;
+        }
+
+        // Ahora leemos el archivo para obtener los datos
+        struct info_usuario datos_usuario;
+
+        if(readFull(fd, (char*) &datos_usuario, sizeof(struct info_usuario)) != 0){
+            // No se ha podido obtener la info
+            codigo = 2;
+            sendMessage(sd, &codigo, 1);
+            flock(fd, LOCK_UN);
+            close(fd);
+            return;
+
+        }
+
+        struct mensaje mensaje_a_enviar;
+        pthread_mutex_lock(&mi_mutex);
+        mensaje_a_enviar.id = id_mensaje_actual++ % 999;
+        pthread_mutex_unlock(&mi_mutex);
+        strncpy(mensaje_a_enviar.usuario_origen, nombre_usuario_remitente, 255);
+        strncpy(mensaje_a_enviar.texto_mensaje, text_message, 255);
+        strncpy(mensaje_a_enviar.file_name, file_name, 255);
+        char str_id[4];
+        sprintf(str_id, "%03d", mensaje_a_enviar.id);
+        if(datos_usuario.estado == 0){
+            // El usuario no esta conectado, se guarda en el archivo para que se envie cuando se conecte
+
+            lseek(fd,0,SEEK_END);
+            if(writeFull(fd,(char*) &mensaje_a_enviar, sizeof(struct mensaje)) != 0){
+                // No se ha podido escribir el mensaje
+                codigo = 2;
+                sendMessage(sd, &codigo, 1);
+                flock(fd, LOCK_UN);
+                close(fd);
+                return;
+            }
+            codigo = 0;
+            sendMessage(sd,&codigo,1);
+            sendMessage(sd, str_id, 4);
+            flock(fd,LOCK_UN);
+            close(fd); 
+            printf("s> MESSAGE %s FROM %s TO %s STORED\n",str_id, nombre_usuario_remitente, nombre_usuario_destino);
+            return;
+        }
+        if (gestionar_envio_mensajes_attach(datos_usuario, mensaje_a_enviar) == -1) {
+            // No se ha podido enviar el mensaje al destinatario
+            codigo = 2;
+            printf("s> Error no se pudo enviar mensaje\n");
+            sendMessage(sd, &codigo, 1);
+            flock(fd, LOCK_UN);
+            close(fd);
+            return;
+        }
+        codigo = 0;
+        sendMessage(sd,&codigo,1);
+        sendMessage(sd, str_id, 4);
+        printf("s> SEND MESSAGE %s FROM %s TO %s\n", str_id, nombre_usuario_remitente, nombre_usuario_destino);
+
+        // Ahora obtenemos la información del remitente para enviarle el ACK
+        char ruta_remitente[BUFFER_SIZE + 10];
+        sprintf(ruta_remitente,"clientes/%s", nombre_usuario_remitente);
+        int fd_remitente = open(ruta_remitente, O_RDONLY);
+        
+        if(fd_remitente >= 0) {
+            if(flock(fd_remitente, LOCK_SH) == 0) {
+                struct info_usuario datos_remitente;
+                if(readFull(fd_remitente, (char*) &datos_remitente, sizeof(struct info_usuario)) == 0) {
+                    // Intentamos enviar el ACK al remitente
+                    int sd_ack = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+                    if(sd_ack >= 0) {
+                        struct sockaddr_in direccion_remitente;
+                        direccion_remitente.sin_family = AF_INET;
+                        direccion_remitente.sin_port = htons(datos_remitente.puerto_escucha_cliente);
+                        inet_pton(AF_INET, datos_remitente.ip, &direccion_remitente.sin_addr);
+                        
+                        if(connect(sd_ack, (struct sockaddr*) &direccion_remitente, sizeof(direccion_remitente)) == 0) {
+                            char message[BUFFER_SIZE] = "SEND_MESSAGE_ATTACH_ACK";
+                            sendMessage(sd_ack, message, 24);
+                            char str_id[4];
+                            sprintf(str_id, "%03d", mensaje_a_enviar.id);
+                            sendMessage(sd_ack, str_id, 4);
+                        }
+                        close(sd_ack);
+                    }
+                }
+                flock(fd_remitente, LOCK_UN);
+            }
+            close(fd_remitente);
+        }
+        
+        flock(fd,LOCK_UN);
+        close(fd); 
+
+    }else{
+        // No se ha conseguido recibir el nombre de usuario
+        codigo = 2;
+        sendMessage(sd, &codigo, 1);
+    }
+
+    // nombre del cliente está en el struct datos_usuario
+    // el segundo parámetro es el mensaje a enviar, se devuelve -1 si no se consigue enviar el mensaje
+    // ESTA FUNCION SE ENCARGARA DE MOSTRAR LOS MENSAJES DE ENVIO DE MENSAJES CORRESPONDIENTES
+    return;
+}
+
+int gestionar_envio_mensajes_attach(struct info_usuario datos_usuario, struct mensaje mensaje_a_enviar){
+    // Aquí se prepara el mensaje a enviar y se envía al cliente
+    int sd_cliente = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sd_cliente < 0){
+        // No se ha podido crear el socket
+        return -1;
+    }
+
+    struct sockaddr_in direccion_cliente;
+    direccion_cliente.sin_family = AF_INET;
+    direccion_cliente.sin_port = htons(datos_usuario.puerto_escucha_cliente);
+    inet_pton(AF_INET, datos_usuario.ip, &direccion_cliente.sin_addr);
+
+    if(connect(sd_cliente,(struct sockaddr*) &direccion_cliente,sizeof(direccion_cliente)) < 0){
+        // No se ha podido conectar con el cliente
+        close(sd_cliente);
+        printf("Error en el connect\n");
+        printf("  IP='%s' puerto=%d\n", datos_usuario.ip, datos_usuario.puerto_escucha_cliente);
+        return -1;
+    }
+
+    // Enviamos el mensaje al cliente
+    char buffer_envio[BUFFER_SIZE] = "SEND_MESSAGE_ATTACH";
+    if (sendMessage(sd_cliente, buffer_envio, 24) < 0){
+        // No se ha podido enviar el mensaje
+        close(sd_cliente);
+        return -1;
+    }
+    if (sendMessage(sd_cliente, mensaje_a_enviar.usuario_origen, strlen(mensaje_a_enviar.usuario_origen) + 1) < 0){
+        // No se ha podido enviar el mensaje
+        close(sd_cliente);
+        return -1;
+    }
+    char str_id [4];
+    sprintf(str_id, "%03d", mensaje_a_enviar.id);
+    if (sendMessage(sd_cliente, str_id, 4) < 0){
+        // No se ha podido enviar el mensaje
+        close(sd_cliente);
+        return -1;
+    }
+    sprintf(buffer_envio, "%s", mensaje_a_enviar.texto_mensaje);
+    if (sendMessage(sd_cliente, buffer_envio, strlen(buffer_envio) + 1) < 0){
+        // No se ha podido enviar el mensaje
+        close(sd_cliente);
+        return -1;
+    }
+    
+    sprintf(buffer_envio, "%s", mensaje_a_enviar.nombre_fichero);
+    if (sendMessage(sd_cliente, buffer_envio, strlen(buffer_envio) + 1) < 0){
+        // No se ha podido enviar el mensaje
+        close(sd_cliente);
+        return -1;
+    }
+
+    close(sd_cliente);
+    return 0;
+}
+
+

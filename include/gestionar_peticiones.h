@@ -7,6 +7,7 @@ struct mensaje {
     // Almacenamos el usuario que envió dicho mensaje
     char usuario_origen [256];
     char texto_mensaje [BUFFER_SIZE];
+    char nombre_fichero [BUFFER_SIZE];
 
 };
 struct info_usuario {
