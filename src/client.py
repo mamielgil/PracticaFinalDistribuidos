@@ -1,4 +1,6 @@
+from email import message
 from enum import Enum
+from tkinter.messagebox import OK
 from servicio_web_final.espacios_clnt import proxy_espacio_unico
 import argparse
 import socket
@@ -21,6 +23,7 @@ class client :
     _port = -1
     _socket_recepcion = None
     _finalizar_thread = 0
+    _usuarios_conectados_datos = {}
 
     # Variable global para controlar el cliente que esta conectado
     _current_client = None
@@ -269,6 +272,11 @@ class client :
                     while b'\0' in buffer:
                         user, buffer = buffer.split(b'\0', 1)
                         print(f"{user.decode()}")
+                        # Guardamos los datos de los usuarios en una lista
+                        # utilizando el deliminator ::
+                        datos_usuario = user.decode().split("::")
+                        # Lo guardamos en un diccionario con key nombre de usuario y valor una tupla (ip, puerto)
+                        client._usuarios_conectados_datos[datos_usuario[0]] = (datos_usuario[1], int(datos_usuario[2]))
                         num_procesados += 1
 
                 return client.RC.OK
@@ -330,6 +338,44 @@ class client :
                                 elementos_recibidos += 1
                         print(f"MESSAGE {int(elementos[1])} FROM {elementos[0]}\n"
                             f"{elementos[2]}\n END \n FILE {elementos[3]}")
+                    
+                    elif mensaje.decode() == 'GET_FILE':
+                        elementos = []
+                        elementos_recibidos = 0
+                        while elementos_recibidos < 2:
+                            message = conexion_entrante.recv(512)
+                            while b'\0' in message:
+                                mensaje_recibido, message = message.split(b'\0', 1)
+                                elementos.append(mensaje_recibido.decode())
+                                elementos_recibidos += 1
+                        print(f"FILE {elementos[1]} REQUESTED BY {elementos[0]}")
+                        
+                        try:
+                            
+                            with open(elementos[1], 'rb') as f:
+                                conexion_entrante.sendall(b'0')
+                                # Leemos el archivo en bloques de 1024 bytes
+                                bloque = f.read(1024)
+                                while bloque:
+                                    conexion_entrante.sendall(bloque)
+                                    bloque = f.read(1024)
+
+                                f.close()
+                            conexion_entrante.close()
+                        
+
+                        except FileNotFoundError as efnf:
+                            print(f"FILE TRANSFER FAILED{efnf}")
+                            conexion_entrante.sendall(b'1')
+                            conexion_entrante.close()
+                            continue
+                            
+                        except Exception as e:
+                            print(f"FILE TRANSFER FAILED{e}")
+                            conexion_entrante.sendall(b'2')
+                            conexion_entrante.close()
+                            continue
+
 
             except OSError as e:
                 # El thread fue cerrado de forma inesperada, finalizamos la ejecución
@@ -546,6 +592,70 @@ class client :
         finally:
             socket_envio_peticion.close()
         return client.RC.ERROR
+    
+    @staticmethod
+    def  getFile(userName, fileName, localFileName) :
+        if(userName not in client._usuarios_conectados_datos.keys()):
+            # Como no tenemos la información de ese user, probamos una petición de users
+            client.users()
+
+            # Una vez obtenidos los nuevos usuarios conectados, comprobamos si el usuario deseado está en el diccionario
+            if(userName not in client._usuarios_conectados_datos.keys()):
+                # El usuario no está conectado
+                print("FILE TRANSFER FAIL, user not connected")
+                return client.RC.USER_ERROR
+            
+        # Tenemos los datos del usuario, procedemos a realizar la petición
+        socket_envio_peticion = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+
+        try:
+            ip = client._usuarios_conectados_datos[userName][0]
+            puerto = client._usuarios_conectados_datos[userName][1]
+            socket_envio_peticion.connect((ip, puerto))
+
+            # Nos aseguramos que enviamos 24 bytes
+            mensaje = b'GET_FILE' + b'\0' * 16
+            socket_envio_peticion.sendall(mensaje)
+            mensaje = client._current_client.encode() + b'\0'
+            socket_envio_peticion.sendall(mensaje)
+            mensaje = fileName.encode() + b'\0'
+            socket_envio_peticion.sendall(mensaje)
+            
+
+            # Vamos a leer el archivo en bloques de 1024 bytes
+            respuesta = int(socket_envio_peticion.recv(1).decode())
+            if(respuesta ==  0):
+
+                with open(localFileName, 'wb') as f:
+
+                    contenido_recibido = socket_envio_peticion.recv(1024)
+                    while  contenido_recibido:
+                        f.write(contenido_recibido)
+                        # Procesamos el siguiente bloque
+                        contenido_recibido = socket_envio_peticion.recv(1024)
+                    # Cerramos el archivo
+                    f.close()
+                print("FILE TRANSFER OK")
+                return client.RC.OK
+            
+            elif(respuesta == 1):
+                print("FILE TRANSFER FAIL, specified fileName does not exist")
+                return client.RC.USER_ERROR
+            
+            elif(respuesta == 2):
+                print("FILE TRANSFER FAIL, system failed")
+                return client.RC.ERROR
+             
+        except  Exception as e:
+            print(f"FILE TRANSFER FAILED{e}")
+            return client.RC.ERROR
+        
+        finally:
+            socket_envio_peticion.close()
+        return client.RC.ERROR
+
+
+
     # *
     # **
     # * @brief Command interpreter for the client. It calls the protocol functions.
@@ -601,10 +711,17 @@ class client :
                     elif(line[0]=="SENDATTACH") :
                         if (len(line) >= 4) :
                             #  Remove first two words
+                            filename = line[2]
                             message = ' '.join(line[3:])
                             client.sendAttach(line[1], line[2], message)
                         else :
                             print("Syntax error. Usage: SENDATTACH <userName> <filename> <message>")
+                    
+                    elif(line[0] == "GETFILE"):
+                        if(len(line) == 4):
+                            client.getFile(line[1], line[2], line[3])
+                        else:
+                            print("Syntax error. Usage: GETFILE <userName> <fileName> <localFileName>")
 
                     elif(line[0]=="QUIT") :
                         if (len(line) == 1) :

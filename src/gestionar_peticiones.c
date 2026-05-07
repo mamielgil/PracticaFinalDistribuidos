@@ -106,7 +106,7 @@ char** leer_users(int* num_users_conn){
                 }
                 // Modificamos la función para mandar el struct de la información para la parte 2
                 users[*num_users_conn] = malloc(sizeof(char) * (BUFFER_SIZE));
-                sprintf(users[*num_users_conn], "%s :: %s :: %d\0", datos_usuario.nombre_cliente, datos_usuario.ip, datos_usuario.puerto_escucha_cliente);
+                sprintf(users[*num_users_conn], "%s::%s::%d", datos_usuario.nombre_cliente, datos_usuario.ip, datos_usuario.puerto_escucha_cliente);
                 (*num_users_conn)++;
             }
             flock(fd, LOCK_UN);
@@ -482,10 +482,18 @@ void gestionar_connect(struct peticion datos_recibidos){
 
         while(readFull(fd,&mensaje_obtenido,sizeof(struct mensaje)) == 0){
             // Hemos obtenido un mensaje, lo preparar para enviar
-            if (gestionar_envio_mensajes(datos_usuario, mensaje_obtenido) == -1) {
-                // No se ha podido enviar el mensaje al destinatario, lo dejamos para la próxima conexión
-                mensajes_fallidos[num_fallidos] = mensaje_obtenido;
-                num_fallidos++;
+            if(strcmp(mensaje_obtenido.nombre_fichero,"") == 0){
+                if (gestionar_envio_mensajes(datos_usuario, mensaje_obtenido) == -1) {
+                    // No se ha podido enviar el mensaje al destinatario, lo dejamos para la próxima conexión
+                    mensajes_fallidos[num_fallidos] = mensaje_obtenido;
+                    num_fallidos++;
+                }
+            } else{
+                if (gestionar_envio_mensajes_attach(datos_usuario, mensaje_obtenido) == -1) {
+                    // No se ha podido enviar el mensaje al destinatario, lo dejamos para la próxima conexión
+                    mensajes_fallidos[num_fallidos] = mensaje_obtenido;
+                    num_fallidos++;
+                }
             }
         }
         
@@ -846,7 +854,7 @@ int gestionar_envio_mensajes(struct info_usuario datos_usuario, struct mensaje m
     return 0;
 }
 
-int gestionar_mensaje_attach(struct peticion datos_recibidos){
+void gestionar_mensaje_attach(struct peticion datos_recibidos){
          // El codigo de error es un unico byte
     char codigo;
     int sd = datos_recibidos.socket_cliente;
@@ -857,7 +865,7 @@ int gestionar_mensaje_attach(struct peticion datos_recibidos){
     // Obtenemos el usuario
     if(readLine(sd,nombre_usuario_remitente,BUFFER_SIZE) > 0){        
         // Consideramos que solamente se guarda la instrucción en el log si ocurre de forma correcta
-        registrar_peticion(nombre_usuario_remitente,"SEND","");
+        registrar_peticion(nombre_usuario_remitente,"SENDATTACH","");
         if (readLine(sd,nombre_usuario_destino,BUFFER_SIZE) <= 0){
             // No se ha conseguido obtener el nombre del destinatario
             codigo = 2;
@@ -920,7 +928,7 @@ int gestionar_mensaje_attach(struct peticion datos_recibidos){
         pthread_mutex_unlock(&mi_mutex);
         strncpy(mensaje_a_enviar.usuario_origen, nombre_usuario_remitente, 255);
         strncpy(mensaje_a_enviar.texto_mensaje, text_message, 255);
-        strncpy(mensaje_a_enviar.file_name, file_name, 255);
+        strncpy(mensaje_a_enviar.nombre_fichero, file_name, 255);
         char str_id[4];
         sprintf(str_id, "%03d", mensaje_a_enviar.id);
         if(datos_usuario.estado == 0){
@@ -977,7 +985,7 @@ int gestionar_mensaje_attach(struct peticion datos_recibidos){
                         inet_pton(AF_INET, datos_remitente.ip, &direccion_remitente.sin_addr);
                         
                         if(connect(sd_ack, (struct sockaddr*) &direccion_remitente, sizeof(direccion_remitente)) == 0) {
-                            char message[BUFFER_SIZE] = "SEND_MESSAGE_ATTACH_ACK";
+                            char message[BUFFER_SIZE] = "SEND_MESS_ATTACH_ACK";
                             sendMessage(sd_ack, message, 24);
                             char str_id[4];
                             sprintf(str_id, "%03d", mensaje_a_enviar.id);

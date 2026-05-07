@@ -37,3 +37,5 @@ void gestionar_users(struct peticion datos_recibidos);
 char** leer_users(int * num_users_conn);
 int gestionar_envio_mensajes(struct info_usuario datos_source,struct mensaje mensaje_a_enviar);
 void gestionar_mensajes(struct peticion);
+int gestionar_envio_mensajes_attach(struct info_usuario datos_usuario, struct mensaje mensaje_a_enviar);
+void gestionar_mensaje_attach(struct peticion datos_recibidos);
