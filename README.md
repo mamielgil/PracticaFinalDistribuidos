@@ -28,6 +28,7 @@ cd RPC_server
 ```
 
 **Terminal 3**
+
 3. Ejecutamos el servidor que gestiona las distintas peticiones asociadas a servicios del sistema(REGISTER, CONNECT...)
 
 ```C
@@ -43,4 +44,4 @@ cd src
 python3 client.py -s localhost -p 5000
 ```
 
-En cada terminal cliente se podrán hacer las instrucciones deseadas que serán gestionadas por el servidor que gestiona las peticiones del sistema.
+En cada terminal cliente se podrán hacer las instrucciones deseadas. Estas serán gestionadas por el servidor que procesa las posibles instrucciones que se pueden pedir al sistema.
