@@ -2,7 +2,7 @@
 
 Primero, para compilar todos los archivos y generar los ejecutables necesarios, es necesario ejecutar el siguiente comando en el directorio más externo:
 
-```C
+```bash
 make
 ```
 Una vez ejecutado el make, se deben realizar los siguientes comandos en distintas terminales:
@@ -11,7 +11,7 @@ Una vez ejecutado el make, se deben realizar los siguientes comandos en distinta
 
 1. Ejecutamos el servidor web
 
-```C
+```bash
 cd src
 cd servicio_web_final
 python3 servicio_web_espacios.py
@@ -21,7 +21,7 @@ python3 servicio_web_espacios.py
 
 2. Ejecutamos el servidor RPC
 
-```C
+```bash
 cd src
 cd RPC_server
 ./server-rpc
@@ -31,7 +31,7 @@ cd RPC_server
 
 3. Ejecutamos el servidor que gestiona las distintas peticiones asociadas a servicios del sistema(REGISTER, CONNECT...)
 
-```C
+```bash
 LOG_RPC_IP=localhost ./servidor -p 5000
 ```
 
@@ -39,7 +39,7 @@ LOG_RPC_IP=localhost ./servidor -p 5000
 
 4. Ejecutamos el número de terminales deseadas, cada una de ellas asociadas a un cliente concreto.
 
-```C
+```bash
 cd src
 python3 client.py -s localhost -p 5000
 ```
