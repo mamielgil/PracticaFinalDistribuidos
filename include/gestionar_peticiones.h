@@ -15,7 +15,6 @@ struct info_usuario {
     char nombre_cliente[256];
     // 0 es que está offline y 1 es que está conectado
     int estado;
-    int ultimo_id;
 
     // IP del usuario
     char ip[INET_ADDRSTRLEN];
