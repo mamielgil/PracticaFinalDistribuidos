@@ -138,7 +138,7 @@ void gestionar_register(struct peticion datos_recibidos){
                 
                 // Enviamos el mensaje de error y finalizamos la ejecución
                 codigo = 2;
-                // Enviamos el codigo a destino
+                // Enviamos el codigoón a destino
                 sendMessage(sd,&codigo,1);
                 // Mostramos el mensaje de error
                 printf("s> REGISTER %s FAIL\n", nombre_usuario);
@@ -800,9 +800,6 @@ void gestionar_mensajes(struct peticion datos_recibidos){
         sendMessage(sd, &codigo, 1);
     }
 
-    // nombre del cliente está en el struct datos_usuario
-    // el segundo parámetro es el mensaje a enviar, se devuelve -1 si no se consigue enviar el mensaje
-    // ESTA FUNCION SE ENCARGARA DE MOSTRAR LOS MENSAJES DE ENVIO DE MENSAJES CORRESPONDIENTES
     return;
 }
 
@@ -1008,9 +1005,6 @@ void gestionar_mensaje_attach(struct peticion datos_recibidos){
         sendMessage(sd, &codigo, 1);
     }
 
-    // nombre del cliente está en el struct datos_usuario
-    // el segundo parámetro es el mensaje a enviar, se devuelve -1 si no se consigue enviar el mensaje
-    // ESTA FUNCION SE ENCARGARA DE MOSTRAR LOS MENSAJES DE ENVIO DE MENSAJES CORRESPONDIENTES
     return;
 }
 
