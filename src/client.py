@@ -288,6 +288,66 @@ class client :
             socket_envio_peticion.close()
 
         return client.RC.ERROR
+
+
+      # *
+    # * 
+    # * @return OK if successful
+    # * @return USER_ERROR if the user does not exist or if it is already connected
+    # * @return ERROR if another error occurred
+    @staticmethod
+    def  users_getfile() :
+        socket_envio_peticion = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        try:
+            socket_envio_peticion.connect((client._server, client._port))
+            message = b'USERS\0'
+            socket_envio_peticion.sendall(message)
+            message = client._current_client.encode() + b'\0'
+            socket_envio_peticion.sendall(message)
+            respuesta = socket_envio_peticion.recv(1)
+            if(len(respuesta) <= 0):
+                # La info no se recibió bien
+                return client.RC.ERROR
+            codigo = respuesta[0]
+
+            if (codigo == 2):
+                return client.RC.ERROR
+
+            elif (codigo == 1):
+                return client.RC.USER_ERROR
+            
+            elif (codigo == 0):
+                respuesta_2 = socket_envio_peticion.recv(4)
+                respuesta_2 = respuesta_2.rstrip(b'\0')
+                if (len(respuesta_2) <= 0):
+                    # La info no se recibió bien
+                    return client.RC.ERROR
+                # Vamos a poner como límite 999 usuarios y lo que se recibe es una cadena de texto
+                num_usuarios = int(respuesta_2.decode())
+                num_procesados = 0
+                buffer = b''
+                while num_procesados < num_usuarios:
+                    respuesta_3 = socket_envio_peticion.recv(1024)
+                    if len(respuesta_3) <= 0:
+                        return client.RC.ERROR
+                    buffer += respuesta_3
+                    while b'\0' in buffer:
+                        user, buffer = buffer.split(b'\0', 1)
+                        print(f"{user.decode()}")
+                        # Guardamos los datos de los usuarios en una lista
+                        # utilizando el deliminator ::
+                        datos_usuario = user.decode().split("::")
+                        # Lo guardamos en un diccionario con key nombre de usuario y valor una tupla (ip, puerto)
+                        client._usuarios_conectados_datos[datos_usuario[0]] = (datos_usuario[1], int(datos_usuario[2]))
+                        num_procesados += 1
+
+                return client.RC.OK
+        except:
+            return client.RC.ERROR
+        
+        finally:
+            socket_envio_peticion.close()
+
     
     @staticmethod
     def worker(socket_recepcion_mensajes):
@@ -597,7 +657,7 @@ class client :
     def  getFile(userName, fileName, localFileName) :
         if(userName not in client._usuarios_conectados_datos.keys()):
             # Como no tenemos la información de ese user, probamos una petición de users
-            client.users()
+            client.users_getfile()
 
             # Una vez obtenidos los nuevos usuarios conectados, comprobamos si el usuario deseado está en el diccionario
             if(userName not in client._usuarios_conectados_datos.keys()):
