@@ -711,11 +711,11 @@ class client :
                     elif(line[0]=="SENDATTACH") :
                         if (len(line) >= 4) :
                             #  Remove first two words
-                            filename = line[2]
-                            message = ' '.join(line[3:])
-                            client.sendAttach(line[1], line[2], message)
+                            filename = line[-1]
+                            message = ' '.join(line[2:-1])
+                            client.sendAttach(line[1], filename, message)
                         else :
-                            print("Syntax error. Usage: SENDATTACH <userName> <filename> <message>")
+                            print("Syntax error. Usage: SENDATTACH <userName> <message> <filename>")
                     
                     elif(line[0] == "GETFILE"):
                         if(len(line) == 4):
