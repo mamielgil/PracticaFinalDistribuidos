@@ -333,7 +333,6 @@ class client :
                     buffer += respuesta_3
                     while b'\0' in buffer:
                         user, buffer = buffer.split(b'\0', 1)
-                        print(f"{user.decode()}")
                         # Guardamos los datos de los usuarios en una lista
                         # utilizando el deliminator ::
                         datos_usuario = user.decode().split("::")
